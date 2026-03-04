@@ -6,6 +6,7 @@ module.exports = {
     "./screens/**/*.{js,jsx,ts,tsx}",
   ],
   presets: [require("nativewind/preset")],
+  darkMode: "class",
   theme: {
     extend: {
       colors: {
@@ -16,12 +17,17 @@ module.exports = {
         danger: "#EF4444",
         warning: "#F97316",
         success: "#10B981",
-        dark: {
-          bg: "#0A0E1A",
-          card: "#111827",
-          border: "#1F2937",
-          surface: "#1A2035",
-        },
+        
+        main: "rgb(var(--bg-main) / <alpha-value>)",
+        card: "rgb(var(--bg-card) / <alpha-value>)",
+        cardBorder: "rgb(var(--bg-card-border) / <alpha-value>)",
+        surface: "rgb(var(--bg-surface) / <alpha-value>)",
+        
+        txt: "rgb(var(--text-main) / <alpha-value>)",
+        txtMuted: "rgb(var(--text-muted) / <alpha-value>)",
+        txtMutedAlt: "rgb(var(--text-muted-alt) / <alpha-value>)",
+        
+        iconDim: "rgb(var(--icon-dim) / <alpha-value>)",
       },
     },
   },

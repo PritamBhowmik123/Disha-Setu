@@ -4,6 +4,7 @@ import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { MOCK_PROJECTS } from '../constants/mockData';
+import { useColorScheme } from '../hooks/use-color-scheme';
 
 const CATEGORIES = [
     { id: 'delay', label: 'Delay', icon: 'time-outline' },
@@ -21,6 +22,10 @@ export default function FeedbackScreen() {
     const [description, setDescription] = useState('');
     const [submitted, setSubmitted] = useState(false);
     const [ticketId] = useState(`GF-2025-${String(Math.floor(1000 + Math.random() * 9000))}`);
+    const { isDark } = useColorScheme();
+    const iconDim = isDark ? '#9CA3AF' : '#6B7280';
+    const bgCard = isDark ? '#111827' : '#FFFFFF';
+    const bgCardBorder = isDark ? '#1F2937' : '#E5E7EB';
 
     const handleSubmit = () => {
         if (selectedProject && selectedCategory && description.trim().length > 10) {
@@ -65,7 +70,7 @@ export default function FeedbackScreen() {
     const isValid = selectedProject && selectedCategory && description.trim().length > 10;
 
     return (
-        <SafeAreaView className="flex-1 bg-[#0A0E1A]" edges={['top']}>
+        <SafeAreaView className="flex-1 bg-main" edges={['top']}>
             <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
                 {/* Header */}
                 <View className="px-4 pt-4 pb-4">
@@ -73,51 +78,51 @@ export default function FeedbackScreen() {
                         <Ionicons name="arrow-back" size={20} color="#00D4AA" />
                         <Text className="text-[#00D4AA] font-semibold">Back</Text>
                     </TouchableOpacity>
-                    <Text className="text-white text-2xl font-bold mb-1">
+                    <Text className="text-txt text-2xl font-bold mb-1">
                         Report <Text className="text-[#EF4444]">an Issue</Text>
                     </Text>
-                    <Text className="text-[#9CA3AF] text-sm">Help us improve civic projects in your area</Text>
+                    <Text className="text-txtMuted text-sm">Help us improve civic projects in your area</Text>
                 </View>
 
                 {/* Step 1 */}
                 <View className="px-4 mb-5">
-                    <Text className="text-[#9CA3AF] text-xs font-bold uppercase tracking-wider mb-3">1. Select Project</Text>
+                    <Text className="text-txtMuted text-xs font-bold uppercase tracking-wider mb-3">1. Select Project</Text>
                     {MOCK_PROJECTS.map(p => (
                         <TouchableOpacity
                             key={p.id}
-                            className="flex-row items-center bg-[#111827] rounded-2xl p-3.5 mb-2 border"
-                            style={{ borderColor: selectedProject === p.id ? '#00D4AA' : '#1F2937' }}
+                            className="flex-row items-center bg-card rounded-2xl p-3.5 mb-2 border"
+                            style={{ borderColor: selectedProject === p.id ? '#00D4AA' : bgCardBorder }}
                             onPress={() => setSelectedProject(p.id)}
                             activeOpacity={0.85}
                         >
                             <View
                                 className="w-5 h-5 rounded-full mr-3 border-2 items-center justify-center"
-                                style={{ borderColor: selectedProject === p.id ? '#00D4AA' : '#374151' }}
+                                style={{ borderColor: selectedProject === p.id ? '#00D4AA' : iconDim }}
                             >
                                 {selectedProject === p.id && <View className="w-2.5 h-2.5 rounded-full bg-[#00D4AA]" />}
                             </View>
-                            <Text className="text-white text-sm font-medium flex-1" numberOfLines={1}>{p.name}</Text>
+                            <Text className="text-txt text-sm font-medium flex-1" numberOfLines={1}>{p.name}</Text>
                         </TouchableOpacity>
                     ))}
                 </View>
 
                 {/* Step 2 */}
                 <View className="px-4 mb-5">
-                    <Text className="text-[#9CA3AF] text-xs font-bold uppercase tracking-wider mb-3">2. Issue Category</Text>
+                    <Text className="text-txtMuted text-xs font-bold uppercase tracking-wider mb-3">2. Issue Category</Text>
                     <View className="flex-row flex-wrap gap-2">
                         {CATEGORIES.map(cat => (
                             <TouchableOpacity
                                 key={cat.id}
                                 className="flex-row items-center rounded-2xl px-4 py-3 border gap-2"
                                 style={{
-                                    backgroundColor: selectedCategory === cat.id ? '#EF444420' : '#111827',
-                                    borderColor: selectedCategory === cat.id ? '#EF4444' : '#1F2937',
+                                    backgroundColor: selectedCategory === cat.id ? '#EF444420' : bgCard,
+                                    borderColor: selectedCategory === cat.id ? '#EF4444' : bgCardBorder,
                                 }}
                                 onPress={() => setSelectedCategory(cat.id)}
                                 activeOpacity={0.85}
                             >
-                                <Ionicons name={cat.icon} size={16} color={selectedCategory === cat.id ? '#EF4444' : '#9CA3AF'} />
-                                <Text className={`text-sm font-semibold ${selectedCategory === cat.id ? 'text-[#EF4444]' : 'text-[#9CA3AF]'}`}>
+                                <Ionicons name={cat.icon} size={16} color={selectedCategory === cat.id ? '#EF4444' : iconDim} />
+                                <Text className={`text-sm font-semibold ${selectedCategory === cat.id ? 'text-[#EF4444]' : 'text-txtMuted'}`}>
                                     {cat.label}
                                 </Text>
                             </TouchableOpacity>
@@ -127,11 +132,11 @@ export default function FeedbackScreen() {
 
                 {/* Step 3 */}
                 <View className="px-4 mb-5">
-                    <Text className="text-[#9CA3AF] text-xs font-bold uppercase tracking-wider mb-3">3. Description</Text>
+                    <Text className="text-txtMuted text-xs font-bold uppercase tracking-wider mb-3">3. Description</Text>
                     <TextInput
-                        className="bg-[#111827] text-white rounded-2xl p-4 border border-[#1F2937] text-sm leading-6"
+                        className="bg-card text-txt rounded-2xl p-4 border border-cardBorder text-sm leading-6"
                         placeholder="Describe the issue in detail... (min. 10 characters)"
-                        placeholderTextColor="#4B5563"
+                        placeholderTextColor={iconDim}
                         multiline
                         numberOfLines={5}
                         textAlignVertical="top"
@@ -139,18 +144,18 @@ export default function FeedbackScreen() {
                         value={description}
                         onChangeText={setDescription}
                     />
-                    <Text className="text-[#4B5563] text-xs mt-1 text-right">{description.length} chars</Text>
+                    <Text className="text-txtMuted text-xs mt-1 text-right">{description.length} chars</Text>
                 </View>
 
                 {/* Step 4: Photo */}
                 <View className="px-4 mb-6">
-                    <Text className="text-[#9CA3AF] text-xs font-bold uppercase tracking-wider mb-3">4. Photo (Optional)</Text>
+                    <Text className="text-txtMuted text-xs font-bold uppercase tracking-wider mb-3">4. Photo (Optional)</Text>
                     <TouchableOpacity
-                        className="bg-[#111827] rounded-2xl h-24 items-center justify-center border border-dashed border-[#374151] gap-2"
+                        className="bg-card rounded-2xl h-24 items-center justify-center border border-dashed border-cardBorder gap-2"
                         activeOpacity={0.85}
                     >
-                        <Ionicons name="camera-outline" size={26} color="#4B5563" />
-                        <Text className="text-[#6B7280] text-sm">Tap to add a photo</Text>
+                        <Ionicons name="camera-outline" size={26} color={iconDim} />
+                        <Text className="text-txtMuted text-sm">Tap to add a photo</Text>
                     </TouchableOpacity>
                 </View>
 
@@ -159,19 +164,21 @@ export default function FeedbackScreen() {
                     <TouchableOpacity
                         className="w-full rounded-2xl py-4 items-center flex-row justify-center gap-2"
                         style={{
-                            backgroundColor: isValid ? '#EF4444' : '#1F2937',
+                            backgroundColor: isValid ? '#EF4444' : bgCard,
                             shadowColor: isValid ? '#EF4444' : 'transparent',
                             shadowOffset: { width: 0, height: 4 },
                             shadowOpacity: 0.4,
                             shadowRadius: 12,
                             elevation: isValid ? 8 : 0,
+                            borderWidth: isValid ? 0 : 1,
+                            borderColor: bgCardBorder
                         }}
                         onPress={handleSubmit}
                         disabled={!isValid}
                         activeOpacity={0.85}
                     >
-                        <Ionicons name="send" size={18} color={isValid ? '#fff' : '#4B5563'} />
-                        <Text className={`font-bold text-lg ${isValid ? 'text-white' : 'text-[#4B5563]'}`}>
+                        <Ionicons name="send" size={18} color={isValid ? '#fff' : iconDim} />
+                        <Text className={`font-bold text-lg ${isValid ? 'text-white' : 'text-txtMuted'}`}>
                             Submit Report
                         </Text>
                     </TouchableOpacity>

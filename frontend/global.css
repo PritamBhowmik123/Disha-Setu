@@ -1,3 +1,31 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+@layer base {
+  :root {
+    --bg-main: 250 250 250;     /* Light background #FAFAFA */
+    --bg-card: 255 255 255;     /* Pure white card #FFFFFF */
+    --bg-card-border: 229 231 235; /* Border #E5E7EB */
+    --bg-surface: 243 244 246;  /* Soft gray block #F3F4F6 */
+    
+    --text-main: 17 24 39;      /* Dark text #111827 */
+    --text-muted: 107 114 128;  /* Muted text #6B7280 */
+    --text-muted-alt: 156 163 175; /* Lighter muted #9CA3AF */
+    
+    --icon-dim: 156 163 175;    /* Dim icons #9CA3AF */
+  }
+
+  .dark {
+    --bg-main: 10 14 26;        /* Dark background #0A0E1A */
+    --bg-card: 17 24 39;        /* Dark card #111827 */
+    --bg-card-border: 31 41 55; /* Dark boundary #1F2937 */
+    --bg-surface: 26 32 53;     /* Dark soft block #1A2035 */
+    
+    --text-main: 255 255 255;   /* White text #FFFFFF */
+    --text-muted: 156 163 175;  /* Light muted #9CA3AF */
+    --text-muted-alt: 107 114 128; /* Darker muted #6B7280 */
+    
+    --icon-dim: 156 163 175;    /* Dim icons #9CA3AF */
+  }
+}

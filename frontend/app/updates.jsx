@@ -4,6 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { MOCK_PROJECTS, CATEGORY_ICONS } from '../constants/mockData';
+import { useColorScheme } from '../hooks/use-color-scheme';
 
 const STATUS_STYLE = {
     'In Progress': { text: '#00D4AA' },
@@ -75,9 +76,11 @@ function SmallProjectCard({ project, onPress }) {
 
 export default function UpdatesScreen() {
     const router = useRouter();
+    const { isDark } = useColorScheme();
+    const iconDim = isDark ? '#9CA3AF' : '#6B7280';
 
     return (
-        <SafeAreaView className="flex-1 bg-[#0A0E1A]" edges={['top']}>
+        <SafeAreaView className="flex-1 bg-main" edges={['top']}>
             <ScrollView showsVerticalScrollIndicator={false}>
                 {/* Header */}
                 <View className="px-4 pt-4 pb-4 flex-row items-center">
@@ -85,10 +88,10 @@ export default function UpdatesScreen() {
                         <Ionicons name="arrow-back" size={20} color="#00D4AA" />
                     </TouchableOpacity>
                     <View>
-                        <Text className="text-white text-2xl font-bold">
+                        <Text className="text-txt text-2xl font-bold">
                             Real-Time <Text className="text-[#6366F1]">Updates</Text>
                         </Text>
-                        <Text className="text-[#9CA3AF] text-sm">Latest project activity near you</Text>
+                        <Text className="text-txtMuted text-sm">Latest project activity near you</Text>
                     </View>
                 </View>
 
@@ -108,8 +111,8 @@ export default function UpdatesScreen() {
                                 <Ionicons name={section.icon} size={18} color={section.color} />
                             </View>
                             <View className="flex-1">
-                                <Text className="text-white font-bold text-base">{section.title}</Text>
-                                <Text className="text-[#6B7280] text-xs">{section.date}</Text>
+                                <Text className="text-txt font-bold text-base">{section.title}</Text>
+                                <Text className="text-txtMuted text-xs">{section.date}</Text>
                             </View>
                             <View className="rounded-full px-2 py-0.5" style={{ backgroundColor: section.color + '20' }}>
                                 <Text style={{ color: section.color }} className="text-xs font-bold">{section.projects.length}</Text>
@@ -122,14 +125,14 @@ export default function UpdatesScreen() {
                 ))}
 
                 {/* Monthly summary */}
-                <View className="mx-4 mb-8 bg-[#111827] rounded-3xl p-5 border border-[#1F2937]">
+                <View className="mx-4 mb-8 bg-card rounded-3xl p-5 border border-cardBorder">
                     <View className="flex-row items-center gap-2 mb-4">
-                        <Ionicons name="trending-up" size={18} color="#fff" />
-                        <Text className="text-white font-bold text-base">This Month</Text>
+                        <Ionicons name="trending-up" size={18} color={iconDim} />
+                        <Text className="text-txt font-bold text-base">This Month</Text>
                     </View>
                     {MONTHLY_STATS.map(stat => (
-                        <View key={stat.label} className="flex-row items-center justify-between py-2.5 border-b border-[#1F2937]">
-                            <Text className="text-[#9CA3AF] text-sm">{stat.label}</Text>
+                        <View key={stat.label} className="flex-row items-center justify-between py-2.5 border-b border-cardBorder last:border-0">
+                            <Text className="text-txtMuted text-sm">{stat.label}</Text>
                             <Text style={{ color: stat.color }} className="text-base font-bold">{stat.value}</Text>
                         </View>
                     ))}

@@ -4,6 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { MOCK_PROJECTS } from '../constants/mockData';
+import { useColorScheme } from '../hooks/use-color-scheme';
 
 const CATEGORY_STATS = [
     { category: 'Roads', count: 5, budget: '₹88 Cr', color: '#F59E0B', iconName: 'add-road', percent: 9 },
@@ -56,9 +57,11 @@ export default function AnalyticsScreen() {
     const inProgress = MOCK_PROJECTS.filter(p => p.status === 'In Progress').length;
     const completed = MOCK_PROJECTS.filter(p => p.status === 'Completed').length;
     const delayed = MOCK_PROJECTS.filter(p => p.status === 'Delayed').length;
+    const { isDark } = useColorScheme();
+    const iconDim = isDark ? '#9CA3AF' : '#6B7280';
 
     return (
-        <SafeAreaView className="flex-1 bg-[#0A0E1A]" edges={['top']}>
+        <SafeAreaView className="flex-1 bg-main" edges={['top']}>
             <ScrollView showsVerticalScrollIndicator={false}>
                 {/* Header */}
                 <View className="px-4 pt-4 pb-4 flex-row items-center">
@@ -66,68 +69,68 @@ export default function AnalyticsScreen() {
                         <Ionicons name="arrow-back" size={20} color="#00D4AA" />
                     </TouchableOpacity>
                     <View>
-                        <Text className="text-white text-2xl font-bold">
+                        <Text className="text-txt text-2xl font-bold">
                             Civic <Text className="text-[#F59E0B]">Intelligence</Text>
                         </Text>
-                        <Text className="text-[#9CA3AF] text-sm">Bangalore North District · 2025</Text>
+                        <Text className="text-txtMuted text-sm">Bangalore North District · 2025</Text>
                     </View>
                 </View>
 
                 {/* Overview cards */}
                 <View className="flex-row px-4 gap-3 mb-4">
-                    <View className="flex-1 bg-[#111827] rounded-3xl p-4 items-center border border-[#1F2937]">
+                    <View className="flex-1 bg-card rounded-3xl p-4 items-center border border-cardBorder">
                         <Ionicons name="construct" size={22} color="#00D4AA" />
                         <Text className="text-[#00D4AA] text-3xl font-bold mt-1">{MOCK_PROJECTS.length}</Text>
-                        <Text className="text-[#9CA3AF] text-xs text-center mt-1">Active Projects</Text>
-                        <Text className="text-[#4B5563] text-xs">in your area</Text>
+                        <Text className="text-txtMuted text-xs text-center mt-1">Active Projects</Text>
+                        <Text className="text-txtMuted text-xs mt-1">in your area</Text>
                     </View>
-                    <View className="flex-1 bg-[#111827] rounded-3xl p-4 items-center border border-[#1F2937]">
+                    <View className="flex-1 bg-card rounded-3xl p-4 items-center border border-cardBorder">
                         <Ionicons name="cash" size={22} color="#F59E0B" />
                         <Text className="text-[#F59E0B] text-3xl font-bold mt-1">₹1.2k</Text>
-                        <Text className="text-[#9CA3AF] text-xs text-center mt-1">Cr Allocated</Text>
-                        <Text className="text-[#4B5563] text-xs">district budget</Text>
+                        <Text className="text-txtMuted text-xs text-center mt-1">Cr Allocated</Text>
+                        <Text className="text-txtMuted text-xs mt-1">district budget</Text>
                     </View>
                 </View>
 
                 {/* Status breakdown */}
-                <View className="mx-4 mb-4 bg-[#111827] rounded-3xl p-5 border border-[#1F2937]">
+                <View className="mx-4 mb-4 bg-card rounded-3xl p-5 border border-cardBorder">
                     <View className="flex-row items-center gap-2 mb-4">
-                        <Ionicons name="pie-chart" size={18} color="#fff" />
-                        <Text className="text-white font-bold text-base">Project Status</Text>
+                        <Ionicons name="pie-chart" size={18} color={iconDim} />
+                        <Text className="text-txt font-bold text-base">Project Status</Text>
                     </View>
                     <View className="flex-row items-center justify-around">
                         <View className="items-center">
                             <DonutProgress value={Math.round(inProgress / MOCK_PROJECTS.length * 100)} color="#00D4AA" />
-                            <Text className="text-[#9CA3AF] text-xs mt-2">In Progress</Text>
-                            <Text className="text-white font-bold">{inProgress}</Text>
+                            <Text className="text-txtMuted text-xs mt-2">In Progress</Text>
+                            <Text className="text-txt font-bold">{inProgress}</Text>
                         </View>
                         <View className="items-center">
                             <DonutProgress value={Math.round(completed / MOCK_PROJECTS.length * 100)} color="#10B981" />
-                            <Text className="text-[#9CA3AF] text-xs mt-2">Completed</Text>
-                            <Text className="text-white font-bold">{completed}</Text>
+                            <Text className="text-txtMuted text-xs mt-2">Completed</Text>
+                            <Text className="text-txt font-bold">{completed}</Text>
                         </View>
                         <View className="items-center">
                             <DonutProgress value={Math.round(delayed / MOCK_PROJECTS.length * 100)} color="#EF4444" />
-                            <Text className="text-[#9CA3AF] text-xs mt-2">Delayed</Text>
-                            <Text className="text-white font-bold">{delayed}</Text>
+                            <Text className="text-txtMuted text-xs mt-2">Delayed</Text>
+                            <Text className="text-txt font-bold">{delayed}</Text>
                         </View>
                     </View>
-                    <View className="mt-5 pt-4 border-t border-[#1F2937]">
+                    <View className="mt-5 pt-4 border-t border-cardBorder">
                         <View className="flex-row items-center justify-between mb-2">
-                            <Text className="text-[#9CA3AF] text-sm">Average Completion Rate</Text>
+                            <Text className="text-txtMuted text-sm">Average Completion Rate</Text>
                             <Text className="text-[#00D4AA] font-bold text-base">{avgCompletion}%</Text>
                         </View>
-                        <View className="h-2 bg-[#1F2937] rounded-full overflow-hidden">
+                        <View className="h-2 bg-surface rounded-full overflow-hidden">
                             <View className="h-full rounded-full bg-[#00D4AA]" style={{ width: `${avgCompletion}%` }} />
                         </View>
                     </View>
                 </View>
 
                 {/* Projects by category */}
-                <View className="mx-4 mb-4 bg-[#111827] rounded-3xl p-5 border border-[#1F2937]">
+                <View className="mx-4 mb-4 bg-card rounded-3xl p-5 border border-cardBorder">
                     <View className="flex-row items-center gap-2 mb-2">
-                        <Ionicons name="bar-chart" size={18} color="#fff" />
-                        <Text className="text-white font-bold text-base">Projects by Category</Text>
+                        <Ionicons name="bar-chart" size={18} color={iconDim} />
+                        <Text className="text-txt font-bold text-base">Projects by Category</Text>
                     </View>
                     <BarChart
                         data={[
@@ -141,21 +144,21 @@ export default function AnalyticsScreen() {
                 </View>
 
                 {/* Budget breakdown */}
-                <View className="mx-4 mb-4 bg-[#111827] rounded-3xl p-5 border border-[#1F2937]">
+                <View className="mx-4 mb-4 bg-card rounded-3xl p-5 border border-cardBorder">
                     <View className="flex-row items-center gap-2 mb-4">
-                        <Ionicons name="wallet" size={18} color="#fff" />
-                        <Text className="text-white font-bold text-base">Budget by Category</Text>
+                        <Ionicons name="wallet" size={18} color={iconDim} />
+                        <Text className="text-txt font-bold text-base">Budget by Category</Text>
                     </View>
                     {CATEGORY_STATS.map(cat => (
                         <View key={cat.category} className="mb-3">
                             <View className="flex-row items-center justify-between mb-1.5">
                                 <View className="flex-row items-center gap-2">
                                     <MaterialIcons name={cat.iconName} size={14} color={cat.color} />
-                                    <Text className="text-[#9CA3AF] text-sm">{cat.category}</Text>
+                                    <Text className="text-txtMuted text-sm">{cat.category}</Text>
                                 </View>
                                 <Text style={{ color: cat.color }} className="font-bold text-sm">{cat.budget}</Text>
                             </View>
-                            <View className="h-2 bg-[#1F2937] rounded-full overflow-hidden">
+                            <View className="h-2 bg-surface rounded-full overflow-hidden">
                                 <View className="h-full rounded-full" style={{ width: `${cat.percent}%`, backgroundColor: cat.color }} />
                             </View>
                         </View>
@@ -171,8 +174,8 @@ export default function AnalyticsScreen() {
                     <View className="flex-row items-center">
                         <MaterialIcons name="local-hospital" size={32} color="#EF4444" style={{ marginRight: 16 }} />
                         <View>
-                            <Text className="text-white font-bold text-base">Healthcare Projects</Text>
-                            <Text className="text-[#9CA3AF] text-sm">Avg 4.2 months behind schedule</Text>
+                            <Text className="text-txt font-bold text-base">Healthcare Projects</Text>
+                            <Text className="text-txtMuted text-sm">Avg 4.2 months behind schedule</Text>
                         </View>
                     </View>
                 </View>
@@ -183,7 +186,7 @@ export default function AnalyticsScreen() {
                         <Ionicons name="bulb" size={18} color="#00D4AA" />
                         <Text className="text-[#00D4AA] font-bold text-base">Civic Insight</Text>
                     </View>
-                    <Text className="text-[#9CA3AF] text-sm leading-6">
+                    <Text className="text-txtMuted text-sm leading-6">
                         Your district has ₹1.2k Cr in active infrastructure investment. Metro projects account for 70% of total spending,
                         while road repairs show the fastest completion rates at 93%.
                     </Text>

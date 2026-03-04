@@ -9,9 +9,9 @@ const { width } = Dimensions.get('window');
 const slides = [
     {
         icon: 'business-outline',
-        title: 'What is GeoFence?',
+        title: 'What is DishaSetu?',
         subtitle: 'Civic Transparency at Your Fingertips',
-        description: "GeoFence connects citizens with public infrastructure projects happening around them — in real time. Know what's being built, by whom, and when it'll be done.",
+        description: "DishaSetu connects citizens with public infrastructure projects happening around them — in real time. Know what's being built, by whom, and when it'll be done.",
         color: '#00D4AA',
     },
     {
@@ -55,7 +55,7 @@ export default function OnboardingScreen() {
                     </View>
                     <Text className="text-white text-3xl font-bold text-center mb-3">Enable Permissions</Text>
                     <Text className="text-[#9CA3AF] text-base text-center leading-6 mb-10">
-                        GeoFence needs access to your location to detect nearby projects and send relevant notifications.
+                        DishaSetu needs access to your location to detect nearby projects and send relevant notifications.
                     </Text>
 
                     <View className="w-full gap-4 mb-10">

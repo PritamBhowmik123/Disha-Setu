@@ -1,36 +1,43 @@
-import { useState } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, Switch } from 'react-native';
-import { useRouter } from 'expo-router';
+import { View, Text, ScrollView, TouchableOpacity, Switch, Image, Linking } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useRouter } from 'expo-router';
 import Ionicons from '@expo/vector-icons/Ionicons';
+import { useColorScheme } from '../../hooks/use-color-scheme';
 
-function SettingRow({ icon, title, subtitle, value, onValueChange, type = 'toggle', onPress }) {
+function SettingRow({ icon, title, subtitle, value, type = 'nav', danger, onPress, action }) {
+    const { isDark } = useColorScheme();
+    const iconDim = isDark ? '#9CA3AF' : '#6B7280';
+
     return (
         <TouchableOpacity
-            className="flex-row items-center px-4 py-4 border-b border-[#1F2937]"
+            className="flex-row items-center py-4 border-b border-cardBorder last:border-0"
             onPress={onPress}
-            activeOpacity={type === 'toggle' ? 1 : 0.7}
+            disabled={type === 'switch'}
+            activeOpacity={0.7}
         >
-            <View className="w-10 h-10 rounded-xl bg-[#1A2035] items-center justify-center mr-4">
-                <Ionicons name={icon} size={20} color="#9CA3AF" />
+            <View className={`w-10 h-10 rounded-full items-center justify-center mr-4 ${danger ? 'bg-[#EF444420]' : 'bg-surface'}`}>
+                <Ionicons name={icon} size={20} color={danger ? '#EF4444' : iconDim} />
             </View>
-            <View className="flex-1">
-                <Text className="text-white font-medium text-base">{title}</Text>
-                {subtitle && <Text className="text-[#6B7280] text-xs mt-0.5">{subtitle}</Text>}
+            <View className="flex-1 justify-center">
+                <Text className={`text-base font-medium mb-0.5 ${danger ? 'text-[#EF4444]' : 'text-txt'}`}>
+                    {title}
+                </Text>
+                {subtitle && (
+                    <Text className="text-txtMuted text-xs">{subtitle}</Text>
+                )}
             </View>
-            {type === 'toggle' && (
-                <Switch
-                    value={value}
-                    onValueChange={onValueChange}
-                    trackColor={{ false: '#374151', true: '#00D4AA' }}
-                    thumbColor="#ffffff"
-                />
+
+            {type === 'nav' && (
+                <View className="flex-row items-center">
+                    {value && <Text className="text-txtMuted mr-2">{value}</Text>}
+                    <Ionicons name="chevron-forward" size={20} color={iconDim} />
+                </View>
             )}
-            {type === 'select' && (
-                <Text className="text-[#9CA3AF] text-sm mr-2">{value}</Text>
-            )}
-            {(type === 'select' || type === 'arrow') && (
-                <Ionicons name="chevron-forward" size={18} color="#4B5563" />
+
+            {type === 'switch' && action}
+
+            {type === 'link' && (
+                <Ionicons name="open-outline" size={20} color={iconDim} />
             )}
         </TouchableOpacity>
     );
@@ -38,119 +45,124 @@ function SettingRow({ icon, title, subtitle, value, onValueChange, type = 'toggl
 
 export default function SettingsScreen() {
     const router = useRouter();
-    const [notifications, setNotifications] = useState(true);
-    const [darkMode, setDarkMode] = useState(true);
-    const [geoFence, setGeoFence] = useState(true);
-    const [radius, setRadius] = useState('5 km');
-    const [language, setLanguage] = useState('English');
+    const { isDark, toggleColorScheme } = useColorScheme();
+
+    const handleLogout = () => {
+        // Add logout logic here
+        router.replace('/auth');
+    };
 
     return (
-        <SafeAreaView className="flex-1 bg-[#0A0E1A]">
-            <View className="px-4 pt-4 pb-4">
-                <Text className="text-white text-2xl font-bold">Settings</Text>
+        <SafeAreaView className="flex-1 bg-main">
+            <View className="px-6 pt-6 pb-2">
+                <Text className="text-txt text-3xl font-bold mb-6">Settings</Text>
             </View>
 
-            <ScrollView showsVerticalScrollIndicator={false}>
-                {/* Profile card */}
-                <View className="mx-4 mb-4 bg-[#111827] rounded-3xl p-4 border border-[#1F2937] flex-row items-center">
-                    <View className="w-14 h-14 rounded-2xl bg-[#00D4AA] items-center justify-center mr-4">
-                        <Ionicons name="person" size={28} color="#000" />
+            <ScrollView className="flex-1" showsVerticalScrollIndicator={false}>
+                {/* Profile Card */}
+                <View className="mx-6 mb-8 bg-card rounded-3xl p-5 border border-cardBorder flex-row items-center">
+                    <Image
+                        source={{ uri: 'https://i.pravatar.cc/100?img=11' }}
+                        className="w-16 h-16 rounded-full border-2 border-[#00D4AA]"
+                    />
+                    <View className="ml-4 flex-1">
+                        <Text className="text-txt text-lg font-bold">Pritam Bhowmik</Text>
+                        <Text className="text-txtMuted text-sm mb-1">+91 98765 43210</Text>
+                        <View className="bg-[#00D4AA20] self-start px-2 py-0.5 rounded flex-row items-center">
+                            <Ionicons name="star" size={10} color="#00D4AA" />
+                            <Text className="text-[#00D4AA] text-[10px] font-bold ml-1 uppercase">Civic Guardian</Text>
+                        </View>
                     </View>
-                    <View className="flex-1">
-                        <Text className="text-white font-bold text-base">Citizen User</Text>
-                        <Text className="text-[#9CA3AF] text-sm">+91 98765 43210</Text>
-                    </View>
-                    <TouchableOpacity className="bg-[#1A2035] rounded-xl px-3 py-2 border border-[#1F2937] flex-row items-center gap-1">
-                        <Ionicons name="create-outline" size={14} color="#00D4AA" />
-                        <Text className="text-[#00D4AA] text-xs font-bold">Edit</Text>
+                    <TouchableOpacity className="p-2 bg-surface rounded-full">
+                        <Ionicons name="pencil" size={18} color="#00D4AA" />
                     </TouchableOpacity>
                 </View>
 
-                {/* Location */}
-                <Text className="text-[#6B7280] text-xs font-bold uppercase tracking-wider px-4 mb-2 mt-2">Location</Text>
-                <View className="mx-4 bg-[#111827] rounded-3xl border border-[#1F2937] overflow-hidden mb-4">
-                    <SettingRow
-                        icon="radio-outline"
-                        title="Geo-Fence Alerts"
-                        subtitle="Get alerted when near project zones"
-                        type="toggle"
-                        value={geoFence}
-                        onValueChange={setGeoFence}
-                    />
-                    <SettingRow
-                        icon="resize-outline"
-                        title="Detection Radius"
-                        subtitle="Projects within this range are shown"
-                        type="select"
-                        value={radius}
-                        onPress={() => {
-                            const options = ['1 km', '5 km', '10 km'];
-                            const next = options[(options.indexOf(radius) + 1) % options.length];
-                            setRadius(next);
-                        }}
-                    />
+                {/* Preferences */}
+                <View className="px-6 mb-8">
+                    <Text className="text-txtMuted text-sm font-semibold mb-3 uppercase tracking-wider ml-2">Preferences</Text>
+                    <View className="bg-card rounded-3xl px-5 border border-cardBorder">
+                        <SettingRow
+                            icon="notifications"
+                            title="Push Notifications"
+                            type="switch"
+                            action={
+                                <Switch
+                                    value={true}
+                                    onValueChange={() => { }}
+                                    trackColor={{ false: '#374151', true: '#00D4AA' }}
+                                    thumbColor="#fff"
+                                />
+                            }
+                        />
+                        <SettingRow
+                            icon="location"
+                            title="Location Services"
+                            subtitle="Required for geo-fencing features"
+                            type="switch"
+                            action={
+                                <Switch
+                                    value={true}
+                                    onValueChange={() => { }}
+                                    trackColor={{ false: '#374151', true: '#00D4AA' }}
+                                    thumbColor="#fff"
+                                />
+                            }
+                        />
+                        <SettingRow
+                            icon={isDark ? "moon" : "sunny"}
+                            title="Dark Mode"
+                            type="switch"
+                            action={
+                                <Switch
+                                    value={isDark}
+                                    onValueChange={toggleColorScheme}
+                                    trackColor={{ false: '#374151', true: '#00D4AA' }}
+                                    thumbColor="#fff"
+                                />
+                            }
+                        />
+                        <SettingRow
+                            icon="language"
+                            title="Language"
+                            value="English"
+                        />
+                    </View>
                 </View>
 
-                {/* Notifications */}
-                <Text className="text-[#6B7280] text-xs font-bold uppercase tracking-wider px-4 mb-2">Notifications</Text>
-                <View className="mx-4 bg-[#111827] rounded-3xl border border-[#1F2937] overflow-hidden mb-4">
-                    <SettingRow
-                        icon="notifications-outline"
-                        title="Push Notifications"
-                        subtitle="Receive project alerts"
-                        type="toggle"
-                        value={notifications}
-                        onValueChange={setNotifications}
-                    />
-                    <SettingRow
-                        icon="bar-chart-outline"
-                        title="Status Updates"
-                        subtitle="When project milestones change"
-                        type="toggle"
-                        value={true}
-                        onValueChange={() => { }}
-                    />
+                {/* Support & Legal */}
+                <View className="px-6 mb-8">
+                    <Text className="text-txtMuted text-sm font-semibold mb-3 uppercase tracking-wider ml-2">Support & Legal</Text>
+                    <View className="bg-card rounded-3xl px-5 border border-cardBorder">
+                        <SettingRow
+                            icon="help-circle"
+                            title="Help Center & FAQs"
+                        />
+                        <SettingRow
+                            icon="shield-checkmark"
+                            title="Privacy Policy"
+                            type="link"
+                        />
+                        <SettingRow
+                            icon="document-text"
+                            title="Terms of Service"
+                            type="link"
+                        />
+                    </View>
                 </View>
 
-                {/* Appearance */}
-                <Text className="text-[#6B7280] text-xs font-bold uppercase tracking-wider px-4 mb-2">Appearance</Text>
-                <View className="mx-4 bg-[#111827] rounded-3xl border border-[#1F2937] overflow-hidden mb-4">
-                    <SettingRow
-                        icon="moon-outline"
-                        title="Dark Mode"
-                        type="toggle"
-                        value={darkMode}
-                        onValueChange={setDarkMode}
-                    />
-                    <SettingRow
-                        icon="globe-outline"
-                        title="Language"
-                        type="select"
-                        value={language}
-                        onPress={() => {
-                            const opts = ['English', 'Hindi', 'Kannada', 'Tamil'];
-                            setLanguage(opts[(opts.indexOf(language) + 1) % opts.length]);
-                        }}
-                    />
+                {/* Account Actions */}
+                <View className="px-6 mb-12">
+                    <View className="bg-card rounded-3xl px-5 border border-cardBorder">
+                        <SettingRow
+                            icon="log-out"
+                            title="Log Out"
+                            danger
+                            onPress={handleLogout}
+                        />
+                    </View>
+                    <Text className="text-txtMuted text-center text-xs mt-6">Disha-Setu v1.0.0 (Build 42)</Text>
                 </View>
-
-                {/* About */}
-                <Text className="text-[#6B7280] text-xs font-bold uppercase tracking-wider px-4 mb-2">About</Text>
-                <View className="mx-4 bg-[#111827] rounded-3xl border border-[#1F2937] overflow-hidden mb-4">
-                    <SettingRow icon="document-text-outline" title="Privacy Policy" type="arrow" />
-                    <SettingRow icon="reader-outline" title="Terms of Service" type="arrow" />
-                    <SettingRow icon="information-circle-outline" title="App Version" subtitle="v1.0.0 (Build 1)" type="select" value="" />
-                </View>
-
-                {/* Logout */}
-                <TouchableOpacity
-                    className="mx-4 mb-8 bg-[#EF444415] rounded-3xl py-4 items-center border border-[#EF4444]/30 flex-row justify-center gap-2"
-                    onPress={() => router.replace('/auth')}
-                    activeOpacity={0.85}
-                >
-                    <Ionicons name="log-out-outline" size={20} color="#EF4444" />
-                    <Text className="text-[#EF4444] font-bold text-base">Sign Out</Text>
-                </TouchableOpacity>
             </ScrollView>
         </SafeAreaView>
     );

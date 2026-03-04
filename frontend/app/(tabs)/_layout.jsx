@@ -1,94 +1,109 @@
 import { Tabs } from 'expo-router';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import React, { useState } from 'react';
+import { Platform, View, TouchableWithoutFeedback, Animated, Text } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 
-const TABS = [
-    { name: 'home', label: 'Home', icon: 'home', iconOutline: 'home-outline' },
-    { name: 'search', label: 'Search', icon: 'search', iconOutline: 'search-outline' },
-    { name: 'notifications', label: 'Alerts', icon: 'notifications', iconOutline: 'notifications-outline' },
-    { name: 'activity', label: 'Activity', icon: 'list', iconOutline: 'list-outline' },
-    { name: 'settings', label: 'Settings', icon: 'settings', iconOutline: 'settings-outline' },
-];
+function TabBarIcon({ name, focused }) {
+    const { isDark } = useColorScheme();
+    const iconDim = isDark ? '#9CA3AF' : '#6B7280';
 
-function CustomTabBar({ state, descriptors, navigation }) {
     return (
-        <View style={styles.container}>
-            <View style={styles.bar}>
-                {state.routes.map((route, index) => {
-                    const tab = TABS.find(t => t.name === route.name) || TABS[0];
-                    const focused = state.index === index;
-                    return (
-                        <TouchableOpacity
-                            key={route.key}
-                            style={styles.tab}
-                            onPress={() => navigation.navigate(route.name)}
-                            activeOpacity={0.8}
-                        >
-                            <View style={[styles.iconContainer, focused && styles.iconContainerActive]}>
-                                <Ionicons
-                                    name={focused ? tab.icon : tab.iconOutline}
-                                    size={22}
-                                    color={focused ? '#00D4AA' : '#4B5563'}
-                                />
-                            </View>
-                            <Text style={[styles.label, focused && styles.labelActive]}>
-                                {tab.label}
-                            </Text>
-                        </TouchableOpacity>
-                    );
-                })}
-            </View>
-        </View>
+        <Ionicons
+            name={focused ? name : `${name}-outline`}
+            size={24}
+            color={focused ? '#00D4AA' : iconDim}
+        />
     );
 }
 
-const styles = StyleSheet.create({
-    container: {
-        backgroundColor: '#0A0E1A',
-        paddingBottom: 8,
-        paddingHorizontal: 12,
-        borderTopWidth: 1,
-        borderTopColor: '#1F2937',
-    },
-    bar: {
-        flexDirection: 'row',
-        justifyContent: 'space-around',
-        paddingTop: 8,
-    },
-    tab: {
-        alignItems: 'center',
-        flex: 1,
-    },
-    iconContainer: {
-        width: 44,
-        height: 32,
-        borderRadius: 16,
-        alignItems: 'center',
-        justifyContent: 'center',
-        marginBottom: 2,
-    },
-    iconContainerActive: {
-        backgroundColor: '#00D4AA20',
-    },
-    label: {
-        fontSize: 10,
-        color: '#4B5563',
-        fontWeight: '500',
-    },
-    labelActive: {
-        color: '#00D4AA',
-        fontWeight: '700',
-    },
-});
+function CustomTabBarButton({ children, onPress, accessibilityState }) {
+    const focused = accessibilityState?.selected;
+
+    return (
+        <TouchableWithoutFeedback onPress={onPress}>
+            <View className="flex-1 items-center justify-center">
+                {children}
+                {focused && (
+                    <View className="absolute bottom-1 w-1 h-1 rounded-full bg-[#00D4AA]" />
+                )}
+            </View>
+        </TouchableWithoutFeedback>
+    );
+}
+
+import { useColorScheme } from '../../hooks/use-color-scheme';
 
 export default function TabLayout() {
+    const { isDark } = useColorScheme();
+    const bgColor = isDark ? '#111827' : '#FFFFFF';
+    const borderColor = isDark ? '#1F2937' : '#E5E7EB';
+
     return (
-        <Tabs tabBar={(props) => <CustomTabBar {...props} />} screenOptions={{ headerShown: false }}>
-            <Tabs.Screen name="home" />
-            <Tabs.Screen name="search" />
-            <Tabs.Screen name="notifications" />
-            <Tabs.Screen name="activity" />
-            <Tabs.Screen name="settings" />
+        <Tabs
+            screenOptions={{
+                headerShown: false,
+                tabBarButton: (props) => <CustomTabBarButton {...props} />,
+                tabBarStyle: Platform.select({
+                    ios: {
+                        position: 'absolute',
+                        backgroundColor: bgColor,
+                        borderTopWidth: 1,
+                        borderTopColor: borderColor,
+                        height: 85,
+                        paddingBottom: 25,
+                        paddingTop: 10,
+                    },
+                    default: {
+                        backgroundColor: bgColor,
+                        borderTopWidth: 1,
+                        borderTopColor: borderColor,
+                        height: 65,
+                        paddingBottom: 10,
+                        paddingTop: 10,
+                        elevation: 0,
+                    },
+                }),
+            }}>
+            <Tabs.Screen
+                name="home"
+                options={{
+                    title: 'Home',
+                    tabBarShowLabel: false,
+                    tabBarIcon: (props) => <TabBarIcon name="home" {...props} />,
+                }}
+            />
+            <Tabs.Screen
+                name="search"
+                options={{
+                    title: 'Search',
+                    tabBarShowLabel: false,
+                    tabBarIcon: (props) => <TabBarIcon name="search" {...props} />,
+                }}
+            />
+            <Tabs.Screen
+                name="activity"
+                options={{
+                    title: 'Activity',
+                    tabBarShowLabel: false,
+                    tabBarIcon: (props) => <TabBarIcon name="bar-chart" {...props} />,
+                }}
+            />
+            <Tabs.Screen
+                name="notifications"
+                options={{
+                    title: 'Alerts',
+                    tabBarShowLabel: false,
+                    tabBarIcon: (props) => <TabBarIcon name="notifications" {...props} />,
+                }}
+            />
+            <Tabs.Screen
+                name="settings"
+                options={{
+                    title: 'Profile',
+                    tabBarShowLabel: false,
+                    tabBarIcon: (props) => <TabBarIcon name="person" {...props} />,
+                }}
+            />
         </Tabs>
     );
 }
