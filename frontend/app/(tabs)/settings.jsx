@@ -49,12 +49,15 @@ export default function SettingsScreen() {
         // Fetch full user profile from backend
         fetchMe()
             .then(data => {
+                console.log('[Settings] Profile data received:', JSON.stringify(data, null, 2));
+                console.log('[Settings] Avatar URL:', data?.avatar_url);
                 setProfileData(data);
                 setLoading(false);
             })
             .catch(err => {
                 console.error('[Settings] Failed to fetch profile:', err.message);
                 // Use fallback data from context if API fails
+                console.log('[Settings] Using fallback user data:', user);
                 setProfileData(user);
                 setLoading(false);
             });
@@ -79,7 +82,10 @@ export default function SettingsScreen() {
     const displayName = profileData?.name || (profileData?.is_guest ? 'Guest User' : 'DishaSetu User');
     const displaySub = profileData?.phone ? `+91 ${profileData.phone}` : (profileData?.is_guest ? 'Guest session' : 'Logged in');
     const civicLevel = profileData?.civic_level || 'Civic Newcomer';
-    const avatarUrl = profileData?.avatar_url || 'https://i.pravatar.cc/100?img=11';
+    const avatarUrl = profileData?.avatar_url;
+    
+    console.log('[Settings] Rendering with avatar URL:', avatarUrl);
+    console.log('[Settings] Profile data:', profileData);
 
     return (
         <SafeAreaView className="flex-1 bg-main">
@@ -90,10 +96,16 @@ export default function SettingsScreen() {
             <ScrollView className="flex-1" showsVerticalScrollIndicator={false}>
                 {/* Profile Card */}
                 <View className="mx-6 mb-8 bg-card rounded-3xl p-5 border border-cardBorder flex-row items-center">
-                    <Image
-                        source={{ uri: avatarUrl }}
-                        className="w-16 h-16 rounded-full border-2 border-[#00D4AA]"
-                    />
+                    {avatarUrl ? (
+                        <Image
+                            source={{ uri: avatarUrl }}
+                            className="w-16 h-16 rounded-full border-2 border-[#00D4AA]"
+                        />
+                    ) : (
+                        <View className="w-16 h-16 rounded-full border-2 border-[#00D4AA] bg-surface items-center justify-center">
+                            <Ionicons name="person" size={32} color="#00D4AA" />
+                        </View>
+                    )}
                     <View className="ml-4 flex-1">
                         <Text className="text-txt text-lg font-bold">{displayName}</Text>
                         <Text className="text-txtMuted text-sm mb-1">{displaySub}</Text>

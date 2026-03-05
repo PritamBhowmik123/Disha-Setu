@@ -42,7 +42,7 @@ export const verifyOTP = async (phone, otp) => {
 };
 
 export const loginWithGoogle = async (idToken) => {
-    console.log('loginWithGoogle called with idToken:', idToken ? 'present' : 'MISSING');
+    console.log('[Auth] loginWithGoogle called with idToken:', idToken ? 'present' : 'MISSING');
     if (!idToken) {
         throw new Error('idToken is required for Google authentication');
     }
@@ -50,9 +50,12 @@ export const loginWithGoogle = async (idToken) => {
         method: 'POST',
         body: JSON.stringify({ idToken }),
     });
+    console.log('[AuthService] Google login response:', JSON.stringify(data, null, 2));
+    console.log('[AuthService] User avatar_url from backend:', data.user?.avatar_url);
     if (data.token) {
         await saveToken(data.token);
         await saveUser(data.user);
+        console.log('[AuthService] Saved user to storage, avatar_url:', data.user?.avatar_url);
     }
     return data;
 };

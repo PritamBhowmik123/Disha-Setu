@@ -3,7 +3,7 @@
  * Global auth state — token, user, login/logout
  */
 import { createContext, useContext, useState, useEffect } from 'react';
-import { getUser, clearAuth } from '../services/authService';
+import { getUser, clearAuth, saveUser } from '../services/authService';
 
 const AuthContext = createContext(null);
 
@@ -19,7 +19,11 @@ export function AuthProvider({ children }) {
         });
     }, []);
 
-    const login = (userData) => setUser(userData);
+    const login = async (userData) => {
+        setUser(userData);
+        // Persist to AsyncStorage to ensure avatar and other data is saved
+        await saveUser(userData);
+    };
 
     const logout = async () => {
         await clearAuth();
@@ -38,3 +42,4 @@ export const useAuth = () => {
     if (!ctx) throw new Error('useAuth must be used within AuthProvider');
     return ctx;
 };
+

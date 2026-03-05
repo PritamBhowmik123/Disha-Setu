@@ -11,6 +11,7 @@ import { useColorScheme } from '../../hooks/use-color-scheme';
 import { useLocation } from '../../hooks/use-location';
 import { haversineKm } from '../../utils/distance';
 import { fetchProjectById, fetchProjectUpdates } from '../../services/projectService';
+import { fetchBuildings } from '../../services/indoorNavigationService';
 import { CATEGORY_ICONS } from '../../constants/mockData';
 import { subscribeToProject, unsubscribeFromProject, onProjectUpdate } from '../../services/socketService';
 
@@ -53,6 +54,7 @@ export default function ProjectDetailScreen() {
     const [updates, setUpdates] = useState([]);
     const [loading, setLoading] = useState(true);
     const [liveUpdate, setLiveUpdate] = useState(null);
+    const [building, setBuilding] = useState(null);
 
     // Calculate distance from user to project
     const distance = coords && project?.lat && project?.lng
@@ -94,6 +96,18 @@ export default function ProjectDetailScreen() {
             ]);
             setProject(proj);
             setUpdates(upds);
+            
+            // Check if this project has indoor navigation
+            try {
+                const buildings = await fetchBuildings();
+                const projectBuilding = buildings.find(b => b.project_id === id);
+                if (projectBuilding) {
+                    setBuilding(projectBuilding);
+                }
+            } catch (err) {
+                // Indoor navigation not available, silently ignore
+                console.log('Indoor navigation not available for this project');
+            }
         } catch (err) {
             Alert.alert('Error', err.message || 'Failed to load project');
         } finally {
@@ -340,6 +354,24 @@ export default function ProjectDetailScreen() {
                             <Text className="text-txtMuted text-[10px] mt-1 z-10 font-mono">{project.lat.toFixed(4)}, {project.lng.toFixed(4)}</Text>
                         )}
                     </View>
+                    
+                    {/* Indoor Navigation Button (if building has indoor maps) */}
+                    {building && (
+                        <TouchableOpacity
+                            className="bg-[#8B5CF6] rounded-2xl py-3 items-center flex-row justify-center gap-2 mt-3"
+                            style={{ shadowColor: '#8B5CF6', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8, elevation: 6 }}
+                            onPress={() => router.push(`/indoor/${building.id}`)}
+                            activeOpacity={0.85}
+                        >
+                            <MaterialIcons name="map" size={20} color="#FFF" />
+                            <Text className="text-white font-bold text-sm">Indoor Navigation</Text>
+                            <View className="bg-white/20 px-2 py-0.5 rounded-full ml-1">
+                                <Text className="text-white text-[10px] font-bold">NEW</Text>
+                            </View>
+                        </TouchableOpacity>
+                    )}
+                    
+                    {/* Get Directions Button */}
                     {/* Get Directions Button */}
                     <TouchableOpacity
                         className="bg-[#4285F4] rounded-2xl py-3 items-center flex-row justify-center gap-2"

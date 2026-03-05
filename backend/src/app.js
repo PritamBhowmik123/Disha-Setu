@@ -14,6 +14,7 @@ const projectsRoutes = require('./routes/projects.routes');
 const feedbackRoutes = require('./routes/feedback.routes');
 const notificationsRoutes = require('./routes/notifications.routes');
 const analyticsRoutes = require('./routes/analytics.routes');
+const indoorNavRoutes = require('./routes/indoor-navigation.routes');
 
 const app = express();
 
@@ -62,6 +63,7 @@ app.use('/api/feedback', feedbackRoutes);
 app.use('/api/notifications', notificationsRoutes);
 // Project updates are served at /api/projects/:id/updates (nested in projects router)
 app.use('/api/analytics', analyticsRoutes);
+app.use('/api', indoorNavRoutes);  // Indoor navigation routes
 
 // ── 404 Handler ────────────────────────────────────────────────
 app.use((req, res) => {
