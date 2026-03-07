@@ -1,24 +1,63 @@
 /**
  * services/authService.js
  * Authentication API - OTP, Google, Guest, token management
+ * Expo Go compatible with error handling
  */
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { apiFetch } from './api';
+import { Platform } from 'react-native';
 
 const TOKEN_KEY = 'auth_token';
 const USER_KEY = 'auth_user';
 
-// ── Token helpers ──────────────────────────────────────────────
-export const saveToken = async (token) => AsyncStorage.setItem(TOKEN_KEY, token);
-export const getToken = async () => AsyncStorage.getItem(TOKEN_KEY);
-export const saveUser = async (user) => AsyncStorage.setItem(USER_KEY, JSON.stringify(user));
-export const getUser = async () => {
-    const raw = await AsyncStorage.getItem(USER_KEY);
-    return raw ? JSON.parse(raw) : null;
+// ── Token helpers with error handling ─────────────────────────
+export const saveToken = async (token) => {
+    try {
+        await AsyncStorage.setItem(TOKEN_KEY, token);
+        return true;
+    } catch (error) {
+        console.error('[Auth] Save token error:', error.message);
+        return false;
+    }
 };
+
+export const getToken = async () => {
+    try {
+        return await AsyncStorage.getItem(TOKEN_KEY);
+    } catch (error) {
+        console.error('[Auth] Get token error:', error.message);
+        return null;
+    }
+};
+
+export const saveUser = async (user) => {
+    try {
+        await AsyncStorage.setItem(USER_KEY, JSON.stringify(user));
+        return true;
+    } catch (error) {
+        console.error('[Auth] Save user error:', error.message);
+        return false;
+    }
+};
+
+export const getUser = async () => {
+    try {
+        const raw = await AsyncStorage.getItem(USER_KEY);
+        return raw ? JSON.parse(raw) : null;
+    } catch (error) {
+        console.error('[Auth] Get user error:', error.message);
+        return null;
+    }
+};
+
 export const clearAuth = async () => {
-    await AsyncStorage.removeItem(TOKEN_KEY);
-    await AsyncStorage.removeItem(USER_KEY);
+    try {
+        await AsyncStorage.multiRemove([TOKEN_KEY, USER_KEY]);
+        return true;
+    } catch (error) {
+        console.error('[Auth] Clear auth error:', error.message);
+        return false;
+    }
 };
 
 // ── Auth API calls ─────────────────────────────────────────────

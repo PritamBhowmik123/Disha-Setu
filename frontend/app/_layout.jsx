@@ -1,10 +1,11 @@
 /**
  * app/_layout.jsx
  * Root layout — wraps app in AuthProvider, connects Socket.io
+ * Expo Go compatible with delayed socket initialization
  */
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { View } from 'react-native';
+import { View, Platform } from 'react-native';
 import { useEffect } from 'react';
 import { useColorScheme } from '../hooks/use-color-scheme';
 import { AuthProvider } from '../context/AuthContext';
@@ -19,8 +20,22 @@ function AppShell() {
   const { isDark } = useColorScheme();
 
   useEffect(() => {
-    // Connect Socket.io when app loads
-    connectSocket().catch(err => console.warn('[Layout] Socket connect error:', err.message));
+    // Delay socket connection for Expo Go compatibility
+    // AsyncStorage needs time to initialize on native platforms
+    const connectionDelay = Platform.OS === 'web' ? 0 : 500;
+    
+    const timer = setTimeout(() => {
+      connectSocket()
+        .then(() => {
+          console.log('[Layout] Socket initialized successfully');
+        })
+        .catch(err => {
+          console.warn('[Layout] Socket connect error:', err?.message || 'Unknown error');
+          // App continues to work without socket - graceful degradation
+        });
+    }, connectionDelay);
+
+    return () => clearTimeout(timer);
   }, []);
 
   return (
