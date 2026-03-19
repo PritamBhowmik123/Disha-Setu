@@ -3,6 +3,7 @@
  */
 import { useState, useEffect, useCallback } from 'react';
 import { ScrollView, View, Text, TouchableOpacity, ActivityIndicator, Alert, Linking, Platform } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Ionicons from '@expo/vector-icons/Ionicons';
@@ -46,6 +47,7 @@ function InfoCard({ label, value, iconName, iconType = 'ion' }) {
 export default function ProjectDetailScreen() {
     const { id } = useLocalSearchParams();
     const router = useRouter();
+    const { t } = useTranslation();
     const { isDark } = useColorScheme();
     const iconDim = isDark ? '#9CA3AF' : '#6B7280';
     const { coords } = useLocation();
@@ -96,7 +98,7 @@ export default function ProjectDetailScreen() {
             ]);
             setProject(proj);
             setUpdates(upds);
-            
+
             // Check if this project has indoor navigation
             try {
                 const buildings = await fetchBuildings();
@@ -136,7 +138,7 @@ export default function ProjectDetailScreen() {
         return (
             <SafeAreaView className="flex-1 bg-main items-center justify-center">
                 <ActivityIndicator size="large" color="#00D4AA" />
-                <Text className="text-txtMuted mt-3 text-sm">Loading project...</Text>
+                <Text className="text-txtMuted mt-3 text-sm">{t('common.loading')}</Text>
             </SafeAreaView>
         );
     }
@@ -145,9 +147,9 @@ export default function ProjectDetailScreen() {
         return (
             <SafeAreaView className="flex-1 bg-main items-center justify-center px-8">
                 <Ionicons name="alert-circle" size={48} color="#EF4444" />
-                <Text className="text-txt font-bold text-lg mt-4">Project not found</Text>
+                <Text className="text-txt font-bold text-lg mt-4">{t('project.not_found')}</Text>
                 <TouchableOpacity className="mt-6 bg-card px-6 py-3 rounded-xl border border-cardBorder" onPress={() => router.back()}>
-                    <Text className="text-txt font-semibold">Go back</Text>
+                    <Text className="text-txt font-semibold">{t('common.back')}</Text>
                 </TouchableOpacity>
             </SafeAreaView>
         );
@@ -169,7 +171,7 @@ export default function ProjectDetailScreen() {
                         activeOpacity={0.7}
                     >
                         <Ionicons name="arrow-back" size={20} color="#00D4AA" />
-                        <Text className="text-[#00D4AA] font-semibold">Back</Text>
+                        <Text className="text-[#00D4AA] font-semibold">{t('common.back')}</Text>
                     </TouchableOpacity>
 
                     {/* Live update banner */}
@@ -196,13 +198,13 @@ export default function ProjectDetailScreen() {
                     {/* Completion */}
                     <View className="bg-card rounded-2xl p-4 border border-cardBorder mb-4">
                         <View className="flex-row items-center justify-between mb-3">
-                            <Text className="text-txtMuted text-sm font-medium">Overall Completion</Text>
+                            <Text className="text-txtMuted text-sm font-medium">{t('project.overall_completion')}</Text>
                             <Text style={{ color: s.text }} className="text-2xl font-bold">{progress}%</Text>
                         </View>
                         <ProgressBar value={progress} color={s.text} />
                         <View className="flex-row items-center gap-1 mt-2">
                             <Ionicons name="time-outline" size={11} color={iconDim} />
-                            <Text className="text-txtMuted text-xs">Last updated: {project.last_updated ? new Date(project.last_updated).toLocaleDateString() : '–'}</Text>
+                            <Text className="text-txtMuted text-xs">{t('project.last_updated')}: {project.last_updated ? new Date(project.last_updated).toLocaleDateString() : '–'}</Text>
                         </View>
                     </View>
 
@@ -211,7 +213,7 @@ export default function ProjectDetailScreen() {
                         <View className="bg-[#EF444415] rounded-2xl p-4 border border-[#EF4444]/30 mb-4 flex-row items-start">
                             <Ionicons name="warning" size={20} color="#EF4444" style={{ marginRight: 12 }} />
                             <View className="flex-1">
-                                <Text className="text-[#EF4444] font-bold text-sm mb-1">Delay Reason</Text>
+                                <Text className="text-[#EF4444] font-bold text-sm mb-1">{t('project.delay_reason')}</Text>
                                 <Text className="text-[#FCA5A5] text-sm leading-5">{project.delay_reason}</Text>
                             </View>
                         </View>
@@ -219,19 +221,19 @@ export default function ProjectDetailScreen() {
 
                     {/* Quick info grid */}
                     <View className="flex-row mb-3">
-                        <InfoCard label="Department" value={project.department} iconName="business-outline" iconType="ion" />
-                        <InfoCard label="Budget" value={project.budget_display} iconName="cash-outline" iconType="ion" />
+                        <InfoCard label={t('project.department')} value={project.department} iconName="business-outline" iconType="ion" />
+                        <InfoCard label={t('project.budget')} value={project.budget_display} iconName="cash-outline" iconType="ion" />
                     </View>
                     <View className="flex-row mb-4">
-                        <InfoCard label="Started" value={project.start_date} iconName="calendar-outline" iconType="ion" />
-                        <InfoCard label="Expected" value={project.completion_display} iconName="flag-outline" iconType="ion" />
+                        <InfoCard label={t('project.started')} value={project.start_date} iconName="calendar-outline" iconType="ion" />
+                        <InfoCard label={t('project.expected')} value={project.completion_display} iconName="flag-outline" iconType="ion" />
                     </View>
 
                     {/* Contractor */}
                     <View className="bg-card rounded-2xl p-3 border border-cardBorder mb-4 flex-row items-center">
                         <Ionicons name="construct-outline" size={20} color={iconDim} style={{ marginRight: 12 }} />
                         <View>
-                            <Text className="text-txtMuted text-xs">Contractor</Text>
+                            <Text className="text-txtMuted text-xs">{t('project.contractor')}</Text>
                             <Text className="text-txt font-semibold text-sm">{project.contractor || '–'}</Text>
                         </View>
                     </View>
@@ -242,7 +244,7 @@ export default function ProjectDetailScreen() {
                     <View className="mx-4 mb-4 bg-[#00D4AA15] rounded-3xl p-5 border border-[#00D4AA]/20">
                         <View className="flex-row items-center gap-2 mb-3">
                             <Ionicons name="leaf" size={16} color="#00D4AA" />
-                            <Text className="text-[#00D4AA] font-bold text-sm uppercase tracking-wider">Civic Impact</Text>
+                            <Text className="text-[#00D4AA] font-bold text-sm uppercase tracking-wider">{t('project.civic_impact')}</Text>
                         </View>
                         <Text className="text-txt text-sm leading-6 mb-4">{project.civic_impact}</Text>
                         <View className="flex-row gap-3">
@@ -252,7 +254,7 @@ export default function ProjectDetailScreen() {
                             </View>
                             <View className="flex-1 bg-surface rounded-2xl p-3 items-center">
                                 <Text className="text-[#00D4AA] text-lg font-bold" numberOfLines={1} adjustsFontSizeToFit>{project.beneficiaries || '–'}</Text>
-                                <Text className="text-txtMuted text-xs text-center mt-1">Beneficiaries</Text>
+                                <Text className="text-txtMuted text-xs text-center mt-1">{t('project.beneficiaries')}</Text>
                             </View>
                         </View>
                     </View>
@@ -263,7 +265,7 @@ export default function ProjectDetailScreen() {
                     <View className="mx-4 mb-4">
                         <View className="flex-row items-center gap-2 mb-4">
                             <Ionicons name="git-branch-outline" size={18} color={iconDim} />
-                            <Text className="text-txt font-bold text-base">Project Timeline</Text>
+                            <Text className="text-txt font-bold text-base">{t('project.timeline')}</Text>
                         </View>
                         <View className="bg-card rounded-3xl border border-cardBorder overflow-hidden">
                             {milestones.map((m, i) => (
@@ -308,7 +310,7 @@ export default function ProjectDetailScreen() {
                     <View className="mx-4 mb-4">
                         <View className="flex-row items-center gap-2 mb-4">
                             <Ionicons name="pulse-outline" size={18} color={iconDim} />
-                            <Text className="text-txt font-bold text-base">Recent Updates</Text>
+                            <Text className="text-txt font-bold text-base">{t('project.recent_updates')}</Text>
                         </View>
                         <View className="bg-card rounded-3xl border border-cardBorder overflow-hidden">
                             {updates.slice(0, 3).map((u, i) => (
@@ -327,7 +329,7 @@ export default function ProjectDetailScreen() {
                     <View className="flex-row items-center justify-between mb-3">
                         <View className="flex-row items-center gap-2">
                             <Ionicons name="location-outline" size={18} color={iconDim} />
-                            <Text className="text-txt font-bold text-base">Location</Text>
+                            <Text className="text-txt font-bold text-base">{t('project.location')}</Text>
                         </View>
                         {distance !== null && (
                             <View className="bg-[#00D4AA]/20 px-3 py-1 rounded-full flex-row items-center gap-1">
@@ -354,7 +356,7 @@ export default function ProjectDetailScreen() {
                             <Text className="text-txtMuted text-[10px] mt-1 z-10 font-mono">{project.lat.toFixed(4)}, {project.lng.toFixed(4)}</Text>
                         )}
                     </View>
-                    
+
                     {/* Indoor Navigation Button (if building has indoor maps) */}
                     {building && (
                         <TouchableOpacity
@@ -370,7 +372,7 @@ export default function ProjectDetailScreen() {
                             </View>
                         </TouchableOpacity>
                     )}
-                    
+
                     {/* Get Directions Button */}
                     {/* Get Directions Button */}
                     <TouchableOpacity
@@ -380,7 +382,7 @@ export default function ProjectDetailScreen() {
                         activeOpacity={0.85}
                     >
                         <Ionicons name="navigate" size={20} color="#FFF" />
-                        <Text className="text-white font-bold text-sm">Get Directions</Text>
+                        <Text className="text-white font-bold text-sm">{t('project.get_directions')}</Text>
                     </TouchableOpacity>
                 </View>
 
@@ -392,7 +394,7 @@ export default function ProjectDetailScreen() {
                         activeOpacity={0.85}
                     >
                         <Ionicons name="alert-circle-outline" size={22} color="#EF4444" style={{ marginBottom: 4 }} />
-                        <Text className="text-txt font-bold text-sm">Report Issue</Text>
+                        <Text className="text-txt font-bold text-sm">{t('project.report_issue')}</Text>
                     </TouchableOpacity>
                     <TouchableOpacity
                         className="flex-1 bg-[#00D4AA] rounded-2xl py-4 items-center"
@@ -401,7 +403,7 @@ export default function ProjectDetailScreen() {
                         activeOpacity={0.85}
                     >
                         <Ionicons name="chatbubble-outline" size={22} color="#000" style={{ marginBottom: 4 }} />
-                        <Text className="text-main font-bold text-sm">Give Feedback</Text>
+                        <Text className="text-main font-bold text-sm">{t('project.give_feedback')}</Text>
                     </TouchableOpacity>
                 </View>
             </ScrollView>

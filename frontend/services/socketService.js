@@ -13,7 +13,7 @@ const getSocketUrl = () => {
         return 'http://localhost:3000';
     }
     // For mobile - use your computer's IP address
-    return 'http://192.168.31.95:3000';
+    return 'http://192.168.0.101:3000';
 };
 
 const SOCKET_URL = getSocketUrl();

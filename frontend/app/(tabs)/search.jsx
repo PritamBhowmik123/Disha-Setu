@@ -10,12 +10,14 @@ import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { useColorScheme } from '../../hooks/use-color-scheme';
 import { fetchProjects } from '../../services/projectService';
 import { CATEGORY_ICONS } from '../../constants/mockData';
+import { useTranslation } from 'react-i18next';
 
 const CATEGORIES = ['All', 'Road', 'Bridge', 'Metro', 'Hospital', 'College', 'Water', 'Park'];
 
 export default function SearchScreen() {
     const router = useRouter();
     const { isDark } = useColorScheme();
+    const { t } = useTranslation();
     const iconDim = isDark ? '#9CA3AF' : '#6B7280';
 
     const [allProjects, setAllProjects] = useState([]);
@@ -48,7 +50,7 @@ export default function SearchScreen() {
                     <Ionicons name="search" size={20} color={iconDim} />
                     <TextInput
                         className="flex-1 text-txt text-base"
-                        placeholder="Search projects, locations..."
+                        placeholder={t('search.placeholder')}
                         placeholderTextColor={iconDim}
                         value={query}
                         onChangeText={setQuery}
@@ -62,23 +64,25 @@ export default function SearchScreen() {
             </View>
 
             {/* Category filter */}
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 12 }}>
-                {CATEGORIES.map(cat => (
-                    <TouchableOpacity
-                        key={cat}
-                        className="mr-2 px-4 py-2 rounded-full border"
-                        style={{
-                            backgroundColor: selectedCategory === cat ? '#00D4AA' : isDark ? '#111827' : '#fff',
-                            borderColor: selectedCategory === cat ? '#00D4AA' : isDark ? '#1F2937' : '#E5E7EB',
-                        }}
-                        onPress={() => setSelectedCategory(cat)}
-                    >
-                        <Text className="font-semibold text-sm" style={{ color: selectedCategory === cat ? '#000' : iconDim }}>
-                            {cat}
-                        </Text>
-                    </TouchableOpacity>
-                ))}
-            </ScrollView>
+            <View className="h-14">
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 1, alignItems: 'center' }}>
+                    {CATEGORIES.map(cat => (
+                        <TouchableOpacity
+                            key={cat}
+                            className="mr-2 px-4 py-2 rounded-full border"
+                            style={{
+                                backgroundColor: selectedCategory === cat ? '#00D4AA' : isDark ? '#111827' : '#fff',
+                                borderColor: selectedCategory === cat ? '#00D4AA' : isDark ? '#1F2937' : '#E5E7EB',
+                            }}
+                            onPress={() => setSelectedCategory(cat)}
+                        >
+                            <Text className="font-semibold text-sm" style={{ color: selectedCategory === cat ? '#000' : iconDim }}>
+                                {cat}
+                            </Text>
+                        </TouchableOpacity>
+                    ))}
+                </ScrollView>
+            </View>
 
             {/* Results */}
             {loading ? (
@@ -86,17 +90,22 @@ export default function SearchScreen() {
                     <ActivityIndicator size="large" color="#00D4AA" />
                 </View>
             ) : (
-                <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ padding: 20, paddingBottom: 100 }}>
+                <ScrollView className="flex-1" showsVerticalScrollIndicator={false} contentContainerStyle={{ padding: 20, paddingBottom: 100 }}>
                     <Text className="text-txtMuted text-sm mb-4">
-                        {filtered.length} result{filtered.length !== 1 ? 's' : ''}
-                        {query ? ` for "${query}"` : ''}
-                        {selectedCategory !== 'All' ? ` in ${selectedCategory}` : ''}
+                        {query && selectedCategory !== 'All'
+                            ? t('search.results_query_cat', { count: filtered.length, s: filtered.length !== 1 ? 's' : '', query, category: selectedCategory })
+                            : query
+                                ? t('search.results_query', { count: filtered.length, s: filtered.length !== 1 ? 's' : '', query })
+                                : selectedCategory !== 'All'
+                                    ? t('search.results_cat', { count: filtered.length, s: filtered.length !== 1 ? 's' : '', category: selectedCategory })
+                                    : t('search.results', { count: filtered.length, s: filtered.length !== 1 ? 's' : '' })
+                        }
                     </Text>
                     {filtered.length === 0 ? (
                         <View className="items-center py-16">
                             <Ionicons name="search-outline" size={48} color={iconDim} />
-                            <Text className="text-txt font-bold text-lg mt-4">No results found</Text>
-                            <Text className="text-txtMuted text-sm mt-2 text-center">Try a different search term or category</Text>
+                            <Text className="text-txt font-bold text-lg mt-4">{t('common.no_results')}</Text>
+                            <Text className="text-txtMuted text-sm mt-2 text-center">{t('search.try_different', 'Try a different search term or category')}</Text>
                         </View>
                     ) : (
                         filtered.map(project => {

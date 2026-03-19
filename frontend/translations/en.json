@@ -1,0 +1,218 @@
+{
+    "common": {
+        "welcome": "Welcome to DishaSetu",
+        "tagline": "Civic Transparency & Geo-Intelligence",
+        "loading": "Loading...",
+        "error": "Something went wrong",
+        "search": "Search projects, areas...",
+        "filter": "Filter",
+        "apply": "Apply",
+        "cancel": "Cancel",
+        "confirm": "Confirm",
+        "save": "Save",
+        "delete": "Delete",
+        "edit": "Edit",
+        "back": "Back",
+        "loading_projects": "Loading projects...",
+        "no_projects": "No projects found",
+        "no_results": "No results found",
+        "try_again": "Try changing your location or check your connection."
+    },
+    "auth": {
+        "login": "Login",
+        "signup": "Sign Up",
+        "guest": "Continue as Guest",
+        "phone": "Phone Number",
+        "otp": "Enter OTP",
+        "verify": "Verify OTP",
+        "resend": "Resend OTP",
+        "google": "Sign in with Google"
+    },
+    "tabs": {
+        "home": "Home",
+        "explore": "Explore",
+        "feedback": "Feedback",
+        "updates": "Updates",
+        "settings": "Settings"
+    },
+    "settings": {
+        "title": "Settings",
+        "profile": "Profile",
+        "preferences": "Preferences",
+        "notifications": "Push Notifications",
+        "location": "Location Services",
+        "dark_mode": "Dark Mode",
+        "language": "Language",
+        "support": "Support & Legal",
+        "help": "Help Center & FAQs",
+        "privacy": "Privacy Policy",
+        "terms": "Terms of Service",
+        "logout": "Log Out",
+        "guest_user": "Guest User",
+        "default_user": "DishaSetu User",
+        "guest_session": "Guest session",
+        "logged_in": "Logged in",
+        "level_newcomer": "Civic Newcomer",
+        "level_guardian": "Civic Guardian",
+        "simulation_active": "Location simulation active for testing."
+    },
+    "home": {
+        "nearby": "Projects Near You",
+        "featured": "Featured Projects",
+        "view_all": "View All",
+        "nearest_site": "Nearest Site",
+        "budget": "Budget",
+        "completion": "Completion",
+        "map": "Map",
+        "list": "List",
+        "projects_found": "{{count}} projects found near {{label}}",
+        "use_gps": "Use GPS",
+        "sim_active": "Location simulation active for testing."
+    },
+    "search": {
+        "placeholder": "Search projects, locations...",
+        "results": "{{count}} result{{s}}",
+        "results_query": "{{count}} result{{s}} for \"{{query}}\"",
+        "results_cat": "{{count}} result{{s}} in {{category}}",
+        "results_query_cat": "{{count}} result{{s}} for \"{{query}}\" in {{category}}"
+    },
+    "activity": {
+        "title": "Your Impact",
+        "subtitle": "Track your civic contributions",
+        "reports": "Reports",
+        "resolved": "Resolved",
+        "history": "Report History",
+        "no_activity": "No activity yet",
+        "start_contributing": "Start contributing by reporting issues or providing feedback",
+        "current_level": "Current Level"
+    },
+    "notif": {
+        "title": "Alerts",
+        "unread": "unread",
+        "mark_all": "Mark all read",
+        "no_notifs": "No notifications",
+        "caught_up": "You're all caught up!",
+        "near_site": "You're near a project site!"
+    },
+    "project": {
+        "details": "Project Details",
+        "overall_completion": "Overall Completion",
+        "last_updated": "Last updated",
+        "delay_reason": "Delay Reason",
+        "department": "Department",
+        "budget": "Budget",
+        "started": "Started",
+        "expected": "Expected",
+        "contractor": "Contractor",
+        "civic_impact": "Civic Impact",
+        "beneficiaries": "Beneficiaries",
+        "timeline": "Project Timeline",
+        "recent_updates": "Recent Updates",
+        "location": "Location",
+        "get_directions": "Get Directions",
+        "report_issue": "Report Issue",
+        "give_feedback": "Give Feedback",
+        "not_found": "Project not found"
+    },
+    "help": {
+        "title": "Help Center",
+        "options": "Support Options",
+        "faq": "FAQ",
+        "contact": "Contact Support",
+        "report": "Report a Problem",
+        "privacy": "Privacy Policy",
+        "terms": "Terms & Conditions",
+        "need_help": "Need immediate help?",
+        "immediate_desc": "Our support team is available 24/7 to assist you.",
+        "message_us": "Message Us",
+        "search_placeholder": "Search for help...",
+        "no_results": "No FAQs found for your search.",
+        "still_questions": "Still have questions?",
+        "contact_desc": "Have a question or feedback? Send us a message.",
+        "replies_in": "Typically replies in 24 hours",
+        "full_name": "Full Name",
+        "name_placeholder": "Enter your name",
+        "email_address": "Email Address",
+        "email_placeholder": "Enter your email",
+        "message": "Message",
+        "name_required": "Name is required",
+        "email_required": "Email is required",
+        "email_invalid": "Email is invalid",
+        "message_required": "Message is required",
+        "msg_placeholder": "How can we help?",
+        "send_msg": "Send Message",
+        "report_desc": "Something not working? Let us know.",
+        "issue_category": "What's the issue about?",
+        "cat_placeholder": "Select a category",
+        "problem_desc": "Describe the problem",
+        "desc_placeholder": "Explain what happened...",
+        "add_screenshot": "Add Screenshot (Optional)",
+        "tap_upload": "Tap to upload image",
+        "submit_report": "Submit Report",
+        "msg_sent": "Message Sent",
+        "msg_sent_desc": "We've received your message and will get back to you shortly.",
+        "report_submitted": "Report Submitted",
+        "report_submitted_desc": "Thank you for reporting this issue.",
+        "missing_info": "Missing Information",
+        "missing_info_desc": "Please select a category and provide a description.",
+        "categories": {
+            "status": "Incorrect Project Status",
+            "map": "Wrong Location/Map Data",
+            "bug": "App Crash/Bug",
+            "content": "Inappropriate Content",
+            "other": "Other"
+        },
+        "faqs": [
+            {
+                "category": "Account",
+                "questions": [
+                    {
+                        "id": "a1",
+                        "q": "How do I login?",
+                        "a": "Use OTP or Google Sign-In from the login screen. If you're a first-time user, you can also continue as a guest to explore the app."
+                    },
+                    {
+                        "id": "a2",
+                        "q": "Can I use the app without an account?",
+                        "a": "Yes, you can use the 'Continue as Guest' option on the login screen. However, you'll need an account to report issues or give feedback."
+                    }
+                ]
+            },
+            {
+                "category": "Projects",
+                "questions": [
+                    {
+                        "id": "p1",
+                        "q": "What is DishaSetu?",
+                        "a": "DishaSetu is a civic transparency platform that helps citizens track public development projects in real-time using geo-intelligence."
+                    },
+                    {
+                        "id": "p2",
+                        "q": "What do the project status labels mean?",
+                        "a": "Projects can be 'Ongoing', 'Completed', or 'Delayed'. 'Delayed' means the project is behind its official schedule."
+                    }
+                ]
+            },
+            {
+                "category": "Feedback",
+                "questions": [
+                    {
+                        "id": "f1",
+                        "q": "How do I report an issue?",
+                        "a": "Go to any project's details page and tap on 'Report an Issue'. You can then provide details, select a category, and upload photos."
+                    }
+                ]
+            },
+            {
+                "category": "Notifications",
+                "questions": [
+                    {
+                        "id": "n1",
+                        "q": "How do geo-fence alerts work?",
+                        "a": "When you are near a listed project site, the app will send you a notification with brief details about that project."
+                    }
+                ]
+            }
+        ]
+    }
+}

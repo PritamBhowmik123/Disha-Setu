@@ -2,6 +2,7 @@ import { Tabs } from 'expo-router';
 import React, { useState } from 'react';
 import { Platform, View, TouchableWithoutFeedback, Animated, Text } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
+import { useTranslation } from 'react-i18next';
 
 function TabBarIcon({ name, focused }) {
     const { isDark } = useColorScheme();
@@ -35,6 +36,7 @@ import { useColorScheme } from '../../hooks/use-color-scheme';
 
 export default function TabLayout() {
     const { isDark } = useColorScheme();
+    const { t } = useTranslation();
     const bgColor = isDark ? '#111827' : '#FFFFFF';
     const borderColor = isDark ? '#1F2937' : '#E5E7EB';
 
@@ -67,7 +69,7 @@ export default function TabLayout() {
             <Tabs.Screen
                 name="home"
                 options={{
-                    title: 'Home',
+                    title: t('tabs.home'),
                     tabBarShowLabel: false,
                     tabBarIcon: (props) => <TabBarIcon name="home" {...props} />,
                 }}
@@ -75,7 +77,7 @@ export default function TabLayout() {
             <Tabs.Screen
                 name="search"
                 options={{
-                    title: 'Search',
+                    title: t('tabs.explore'),
                     tabBarShowLabel: false,
                     tabBarIcon: (props) => <TabBarIcon name="search" {...props} />,
                 }}
@@ -83,7 +85,7 @@ export default function TabLayout() {
             <Tabs.Screen
                 name="activity"
                 options={{
-                    title: 'Activity',
+                    title: t('tabs.feedback'),
                     tabBarShowLabel: false,
                     tabBarIcon: (props) => <TabBarIcon name="bar-chart" {...props} />,
                 }}
@@ -91,7 +93,7 @@ export default function TabLayout() {
             <Tabs.Screen
                 name="notifications"
                 options={{
-                    title: 'Alerts',
+                    title: t('tabs.updates'),
                     tabBarShowLabel: false,
                     tabBarIcon: (props) => <TabBarIcon name="notifications" {...props} />,
                 }}
@@ -99,7 +101,7 @@ export default function TabLayout() {
             <Tabs.Screen
                 name="settings"
                 options={{
-                    title: 'Profile',
+                    title: t('tabs.settings'),
                     tabBarShowLabel: false,
                     tabBarIcon: (props) => <TabBarIcon name="person" {...props} />,
                 }}

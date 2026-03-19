@@ -7,6 +7,7 @@ import { useColorScheme } from '../../hooks/use-color-scheme';
 import { useAuth } from '../../context/AuthContext';
 import { logout as authLogout, fetchMe } from '../../services/authService';
 import { disconnectSocket } from '../../services/socketService';
+import { useTranslation } from 'react-i18next';
 
 function SettingRow({ icon, title, subtitle, value, type = 'nav', danger, onPress, action }) {
     const { isDark } = useColorScheme();
@@ -42,8 +43,29 @@ export default function SettingsScreen() {
     const router = useRouter();
     const { isDark, toggleColorScheme } = useColorScheme();
     const { user, logout } = useAuth();
+    const { t, i18n } = useTranslation();
     const [profileData, setProfileData] = useState(null);
     const [loading, setLoading] = useState(true);
+    const [showLangPicker, setShowLangPicker] = useState(false);
+
+    const languages = [
+        { code: 'en', name: 'English' },
+        { code: 'hi', name: 'Hindi (हिन्दी)' },
+        { code: 'bn', name: 'Bengali (বাংলা)' },
+        { code: 'ta', name: 'Tamil (தமிழ்)' },
+        { code: 'te', name: 'Telugu (తెలుగు)' },
+        { code: 'mr', name: 'Marathi (मराठी)' },
+        { code: 'kn', name: 'Kannada (ಕನ್ನಡ)' },
+        { code: 'pa', name: 'Punjabi (ਪੰਜਾਬੀ)' },
+        { code: 'ml', name: 'Malayalam (മലയാളം)' },
+    ];
+
+    const currentLanguageName = languages.find(l => l.code === i18n.language)?.name || 'English';
+
+    const changeLanguage = (code) => {
+        i18n.changeLanguage(code);
+        setShowLangPicker(false);
+    };
 
     useEffect(() => {
         // Fetch full user profile from backend
@@ -74,23 +96,23 @@ export default function SettingsScreen() {
         return (
             <SafeAreaView className="flex-1 bg-main items-center justify-center">
                 <ActivityIndicator size="large" color="#00D4AA" />
-                <Text className="text-txtMuted mt-3 text-sm">Loading profile...</Text>
+                <Text className="text-txtMuted mt-3 text-sm">{t('common.loading')}</Text>
             </SafeAreaView>
         );
     }
 
-    const displayName = profileData?.name || (profileData?.is_guest ? 'Guest User' : 'DishaSetu User');
-    const displaySub = profileData?.phone ? `+91 ${profileData.phone}` : (profileData?.is_guest ? 'Guest session' : 'Logged in');
-    const civicLevel = profileData?.civic_level || 'Civic Newcomer';
+    const displayName = profileData?.name || (profileData?.is_guest ? t('settings.guest_user') : t('settings.default_user'));
+    const displaySub = profileData?.phone ? `+91 ${profileData.phone}` : (profileData?.is_guest ? t('settings.guest_session') : t('settings.logged_in'));
+    const civicLevel = profileData?.civic_level === 'Civic Guardian' ? t('activity.level_guardian') : t('settings.level_newcomer');
     const avatarUrl = profileData?.avatar_url;
-    
+
     console.log('[Settings] Rendering with avatar URL:', avatarUrl);
     console.log('[Settings] Profile data:', profileData);
 
     return (
         <SafeAreaView className="flex-1 bg-main">
             <View className="px-6 pt-6 pb-2">
-                <Text className="text-txt text-3xl font-bold mb-6">Settings</Text>
+                <Text className="text-txt text-3xl font-bold mb-6">{t('settings.title')}</Text>
             </View>
 
             <ScrollView className="flex-1" showsVerticalScrollIndicator={false}>
@@ -121,11 +143,11 @@ export default function SettingsScreen() {
 
                 {/* Preferences */}
                 <View className="px-6 mb-8">
-                    <Text className="text-txtMuted text-sm font-semibold mb-3 uppercase tracking-wider ml-2">Preferences</Text>
+                    <Text className="text-txtMuted text-sm font-semibold mb-3 uppercase tracking-wider ml-2">{t('settings.preferences')}</Text>
                     <View className="bg-card rounded-3xl px-5 border border-cardBorder">
                         <SettingRow
                             icon="notifications"
-                            title="Push Notifications"
+                            title={t('settings.notifications')}
                             type="switch"
                             action={
                                 <Switch
@@ -138,7 +160,7 @@ export default function SettingsScreen() {
                         />
                         <SettingRow
                             icon="location"
-                            title="Location Services"
+                            title={t('settings.location')}
                             subtitle="Required for geo-fencing features"
                             type="switch"
                             action={
@@ -152,7 +174,7 @@ export default function SettingsScreen() {
                         />
                         <SettingRow
                             icon={isDark ? 'moon' : 'sunny'}
-                            title="Dark Mode"
+                            title={t('settings.dark_mode')}
                             type="switch"
                             action={
                                 <Switch
@@ -163,7 +185,30 @@ export default function SettingsScreen() {
                                 />
                             }
                         />
-                        <SettingRow icon="language" title="Language" value="English" />
+                        <SettingRow
+                            icon="language"
+                            title={t('settings.language')}
+                            value={currentLanguageName}
+                            onPress={() => setShowLangPicker(!showLangPicker)}
+                        />
+
+                        {showLangPicker && (
+                            <View className="pb-4 pt-2 border-t border-cardBorder">
+                                <View className="flex-row flex-wrap justify-between">
+                                    {languages.map((lang) => (
+                                        <TouchableOpacity
+                                            key={lang.code}
+                                            className={`px-3 py-2 rounded-xl mb-2 w-[48%] border ${i18n.language === lang.code ? 'bg-[#00D4AA20] border-[#00D4AA]' : 'bg-surface border-cardBorder'}`}
+                                            onPress={() => changeLanguage(lang.code)}
+                                        >
+                                            <Text className={`text-xs text-center ${i18n.language === lang.code ? 'text-[#00D4AA] font-bold' : 'text-txt'}`}>
+                                                {lang.name}
+                                            </Text>
+                                        </TouchableOpacity>
+                                    ))}
+                                </View>
+                            </View>
+                        )}
                     </View>
                 </View>
 
@@ -184,11 +229,15 @@ export default function SettingsScreen() {
 
                 {/* Support & Legal */}
                 <View className="px-6 mb-8">
-                    <Text className="text-txtMuted text-sm font-semibold mb-3 uppercase tracking-wider ml-2">Support & Legal</Text>
+                    <Text className="text-txtMuted text-sm font-semibold mb-3 uppercase tracking-wider ml-2">{t('settings.support')}</Text>
                     <View className="bg-card rounded-3xl px-5 border border-cardBorder">
-                        <SettingRow icon="help-circle" title="Help Center & FAQs" />
-                        <SettingRow icon="shield-checkmark" title="Privacy Policy" type="link" />
-                        <SettingRow icon="document-text" title="Terms of Service" type="link" />
+                        <SettingRow
+                            icon="help-circle"
+                            title={t('settings.help')}
+                            onPress={() => router.push('/settings/help')}
+                        />
+                        <SettingRow icon="shield-checkmark" title={t('settings.privacy')} type="link" />
+                        <SettingRow icon="document-text" title={t('settings.terms')} type="link" />
                     </View>
                 </View>
 
@@ -197,7 +246,7 @@ export default function SettingsScreen() {
                     <View className="bg-card rounded-3xl px-5 border border-cardBorder">
                         <SettingRow
                             icon="log-out"
-                            title="Log Out"
+                            title={t('settings.logout')}
                             danger
                             onPress={handleLogout}
                         />

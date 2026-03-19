@@ -11,6 +11,7 @@ import { useColorScheme } from '../hooks/use-color-scheme';
 import { AuthProvider } from '../context/AuthContext';
 import { connectSocket } from '../services/socketService';
 import '../global.css';
+import '../i18n';
 
 export const unstable_settings = {
   initialRouteName: 'index',
@@ -23,7 +24,7 @@ function AppShell() {
     // Delay socket connection for Expo Go compatibility
     // AsyncStorage needs time to initialize on native platforms
     const connectionDelay = Platform.OS === 'web' ? 0 : 500;
-    
+
     const timer = setTimeout(() => {
       connectSocket()
         .then(() => {
@@ -48,6 +49,10 @@ function AppShell() {
         <Stack.Screen name="(tabs)" />
         <Stack.Screen name="admin" options={{ animation: 'slide_from_right' }} />
         <Stack.Screen name="project/[id]" options={{ animation: 'slide_from_right' }} />
+        <Stack.Screen name="settings/help" options={{ animation: 'slide_from_right' }} />
+        <Stack.Screen name="settings/faq" options={{ animation: 'slide_from_right' }} />
+        <Stack.Screen name="settings/contact" options={{ animation: 'slide_from_bottom' }} />
+        <Stack.Screen name="settings/report" options={{ animation: 'slide_from_bottom' }} />
         <Stack.Screen name="feedback" options={{ animation: 'slide_from_bottom' }} />
         <Stack.Screen name="updates" options={{ animation: 'slide_from_right' }} />
         <Stack.Screen name="analytics" options={{ animation: 'slide_from_right' }} />

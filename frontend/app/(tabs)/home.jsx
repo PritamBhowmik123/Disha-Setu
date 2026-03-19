@@ -14,9 +14,11 @@ import { useAuth } from '../../context/AuthContext';
 import { fetchProjects } from '../../services/projectService';
 import { emitLocation } from '../../services/socketService';
 import { CATEGORY_ICONS } from '../../constants/mockData';
+import { useTranslation } from 'react-i18next';
 
 function ProjectCard({ project, onPress }) {
     const { isDark } = useColorScheme();
+    const { t } = useTranslation();
     const iconDim = isDark ? '#9CA3AF' : '#6B7280';
     const progress = project.progress_percentage ?? project.progress ?? 0;
 
@@ -60,11 +62,11 @@ function ProjectCard({ project, onPress }) {
                 </View>
                 <View className="flex-row items-center justify-between pt-4 border-t border-cardBorder">
                     <View>
-                        <Text className="text-txtMuted text-xs mb-1 uppercase tracking-wider font-semibold">Budget</Text>
+                        <Text className="text-txtMuted text-xs mb-1 uppercase tracking-wider font-semibold">{t('home.budget')}</Text>
                         <Text className="text-txt font-bold">{project.budget_display || project.budget}</Text>
                     </View>
                     <View className="items-end">
-                        <Text className="text-txtMuted text-xs mb-1 uppercase tracking-wider font-semibold">Completion</Text>
+                        <Text className="text-txtMuted text-xs mb-1 uppercase tracking-wider font-semibold">{t('home.completion')}</Text>
                         <Text className="text-[#00D4AA] font-bold">{project.completion_display || project.expectedCompletion}</Text>
                     </View>
                 </View>
@@ -80,6 +82,7 @@ function ProjectCard({ project, onPress }) {
 export default function HomeScreen() {
     const router = useRouter();
     const { user } = useAuth();
+    const { t } = useTranslation();
     const [viewMode, setViewMode] = useState('list');
     const [showLocationModal, setShowLocationModal] = useState(false);
     const [projects, setProjects] = useState([]);
@@ -131,7 +134,7 @@ export default function HomeScreen() {
                         </View>
                         <View className="flex-1 justify-center">
                             <Text className="text-txtMuted text-xs font-medium uppercase tracking-wider mb-0.5">
-                                {mode === 'gps' ? 'Current Location' : 'Test Location'}
+                                {mode === 'gps' ? t('home.current_location', 'Current Location') : t('home.test_location', 'Test Location')}
                             </Text>
                             <View className="flex-row items-center">
                                 <Text className="text-txt font-bold text-sm mr-1" numberOfLines={1}>{label}</Text>
@@ -156,8 +159,8 @@ export default function HomeScreen() {
             {mode === 'manual' && (
                 <View className="px-5 mb-3">
                     <View className="bg-[#6366F1]/10 border border-[#6366F1]/30 rounded-lg px-3 py-2 flex-row items-center">
-                        <Text className="text-[#6366F1] flex-1 text-xs ml-2">Location simulation active for testing.</Text>
-                        <TouchableOpacity onPress={startGPS}><Text className="text-[#00D4AA] text-xs font-bold">Use GPS</Text></TouchableOpacity>
+                        <Text className="text-[#6366F1] flex-1 text-xs ml-2">{t('home.sim_active')}</Text>
+                        <TouchableOpacity onPress={startGPS}><Text className="text-[#00D4AA] text-xs font-bold">{t('home.use_gps')}</Text></TouchableOpacity>
                     </View>
                 </View>
             )}
@@ -172,7 +175,7 @@ export default function HomeScreen() {
                     <View className="flex-row items-center justify-between mb-2">
                         <View className="flex-row items-center bg-[#00D4AA]/20 px-2 py-1 rounded-md">
                             <Ionicons name="flash" size={12} color="#00D4AA" />
-                            <Text className="text-[#00D4AA] text-[10px] font-bold ml-1 tracking-wider uppercase">Nearest Site</Text>
+                            <Text className="text-[#00D4AA] text-[10px] font-bold ml-1 tracking-wider uppercase">{t('home.nearest_site')}</Text>
                         </View>
                         <Text className="text-[#00D4AA] font-bold text-sm">
                             {nearestProject.distance_m < 1000 ? `${nearestProject.distance_m}m` : `${(nearestProject.distance_m / 1000).toFixed(1)}km`}
@@ -188,7 +191,7 @@ export default function HomeScreen() {
                 {loading ? (
                     <View className="flex-1 items-center justify-center">
                         <ActivityIndicator size="large" color="#00D4AA" />
-                        <Text className="text-txtMuted text-sm mt-3">Loading projects...</Text>
+                        <Text className="text-txtMuted text-sm mt-3">{t('common.loading_projects')}</Text>
                     </View>
                 ) : viewMode === 'map' ? (
                     <View className="flex-1 bg-surface relative">
@@ -199,7 +202,7 @@ export default function HomeScreen() {
                         />
                         <View className="absolute inset-x-0 bottom-6 items-center">
                             <Text className="text-white font-mono text-xs bg-black/50 px-3 py-1 rounded-full mb-4">
-                                {projects.length} projects found near {label}
+                                {t('home.projects_found', { count: projects.length, label })}
                             </Text>
                         </View>
                     </View>
@@ -213,8 +216,8 @@ export default function HomeScreen() {
                         {projects.length === 0 ? (
                             <View className="items-center justify-center py-20">
                                 <Ionicons name="construct-outline" size={48} color={iconDim} />
-                                <Text className="text-txt font-bold text-lg mt-4">No projects found</Text>
-                                <Text className="text-txtMuted text-sm mt-2 text-center">Try changing your location or check your connection.</Text>
+                                <Text className="text-txt font-bold text-lg mt-4">{t('common.no_projects')}</Text>
+                                <Text className="text-txtMuted text-sm mt-2 text-center">{t('common.try_again')}</Text>
                             </View>
                         ) : (
                             projects.map(project => (
@@ -235,14 +238,14 @@ export default function HomeScreen() {
                         onPress={() => setViewMode('map')}
                     >
                         <Ionicons name="map" size={16} color={viewMode === 'map' ? '#00D4AA' : iconDim} />
-                        <Text className={`ml-2 text-sm font-bold ${viewMode === 'map' ? 'text-[#00D4AA]' : 'text-txtMuted'}`}>Map</Text>
+                        <Text className={`ml-2 text-sm font-bold ${viewMode === 'map' ? 'text-[#00D4AA]' : 'text-txtMuted'}`}>{t('home.map')}</Text>
                     </TouchableOpacity>
                     <TouchableOpacity
                         className={`flex-1 flex-row items-center justify-center py-2.5 rounded-full ${viewMode === 'list' ? 'bg-card' : ''}`}
                         onPress={() => setViewMode('list')}
                     >
                         <Ionicons name="list" size={16} color={viewMode === 'list' ? '#00D4AA' : iconDim} />
-                        <Text className={`ml-2 text-sm font-bold ${viewMode === 'list' ? 'text-[#00D4AA]' : 'text-txtMuted'}`}>List</Text>
+                        <Text className={`ml-2 text-sm font-bold ${viewMode === 'list' ? 'text-[#00D4AA]' : 'text-txtMuted'}`}>{t('home.list')}</Text>
                     </TouchableOpacity>
                 </View>
             </View>

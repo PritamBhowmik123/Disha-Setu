@@ -3,6 +3,7 @@
  */
 import { useState, useEffect, useCallback } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, ActivityIndicator, RefreshControl } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useColorScheme } from '../../hooks/use-color-scheme';
@@ -44,6 +45,7 @@ function NotifCard({ notif }) {
 
 export default function NotificationsScreen() {
     const { isDark } = useColorScheme();
+    const { t } = useTranslation();
     const iconDim = isDark ? '#9CA3AF' : '#6B7280';
     const [notifications, setNotifications] = useState([]);
     const [unreadCount, setUnreadCount] = useState(0);
@@ -109,14 +111,14 @@ export default function NotificationsScreen() {
             {/* Header */}
             <View className="px-5 pt-4 pb-2 flex-row items-center justify-between">
                 <View>
-                    <Text className="text-txt text-2xl font-bold">Alerts</Text>
+                    <Text className="text-txt text-2xl font-bold">{t('notif.title')}</Text>
                     {unreadCount > 0 && (
-                        <Text className="text-[#00D4AA] text-sm font-semibold mt-0.5">{unreadCount} unread</Text>
+                        <Text className="text-[#00D4AA] text-sm font-semibold mt-0.5">{unreadCount} {t('notif.unread')}</Text>
                     )}
                 </View>
                 {unreadCount > 0 && (
                     <TouchableOpacity className="bg-card rounded-xl px-4 py-2 border border-cardBorder" onPress={handleMarkAllRead}>
-                        <Text className="text-[#00D4AA] text-sm font-semibold">Mark all read</Text>
+                        <Text className="text-[#00D4AA] text-sm font-semibold">{t('notif.mark_all')}</Text>
                     </TouchableOpacity>
                 )}
             </View>
@@ -126,7 +128,7 @@ export default function NotificationsScreen() {
                 <View className="mx-5 mb-3 bg-[#00D4AA]/10 border border-[#00D4AA]/30 rounded-2xl p-4 flex-row items-center">
                     <Ionicons name="location" size={24} color="#00D4AA" style={{ marginRight: 12 }} />
                     <View className="flex-1">
-                        <Text className="text-[#00D4AA] font-bold text-sm">You're near a project site!</Text>
+                        <Text className="text-[#00D4AA] font-bold text-sm">{t('notif.near_site')}</Text>
                         <Text className="text-txtMuted text-xs mt-0.5">
                             {geoAlert.projectName} — {geoAlert.distanceM < 1000 ? `${geoAlert.distanceM}m` : `${(geoAlert.distanceM / 1000).toFixed(1)}km`} away
                         </Text>
@@ -151,8 +153,8 @@ export default function NotificationsScreen() {
                     {notifications.length === 0 ? (
                         <View className="items-center justify-center py-20">
                             <Ionicons name="notifications-off-outline" size={48} color={iconDim} />
-                            <Text className="text-txt font-bold text-lg mt-4">No notifications</Text>
-                            <Text className="text-txtMuted text-sm mt-2 text-center">You're all caught up!</Text>
+                            <Text className="text-txt font-bold text-lg mt-4">{t('notif.no_notifs')}</Text>
+                            <Text className="text-txtMuted text-sm mt-2 text-center">{t('notif.caught_up')}</Text>
                         </View>
                     ) : (
                         notifications.map(n => <NotifCard key={n.id} notif={n} />)

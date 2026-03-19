@@ -1,11 +1,13 @@
 import { useEffect, useRef } from 'react';
 import { View, Text, Animated, Easing, Image } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Ionicons from '@expo/vector-icons/Ionicons';
 
 export default function SplashScreen() {
     const router = useRouter();
+    const { t } = useTranslation();
     const logoScale = useRef(new Animated.Value(0)).current;
     const logoOpacity = useRef(new Animated.Value(0)).current;
     const taglineOpacity = useRef(new Animated.Value(0)).current;
@@ -68,7 +70,7 @@ export default function SplashScreen() {
                 {/* Tagline */}
                 <Animated.View style={{ opacity: taglineOpacity }} className="items-center mb-16">
                     <Text className="text-txtMuted text-base text-center leading-6 font-medium">
-                        Know What&apos;s Happening Built{'\n'}Around You
+                        {t('common.tagline')}
                     </Text>
                 </Animated.View>
 
