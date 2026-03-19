@@ -1,14 +1,16 @@
-import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, Modal, ScrollView, TextInput } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, TouchableOpacity, Modal, ScrollView, TextInput, ActivityIndicator } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useColorScheme } from '../hooks/use-color-scheme';
+import { fetchLocations } from '../services/locationService';
 
-const PRESET_LOCATIONS = [
-    { name: 'Indiranagar', lat: 12.9784, lng: 77.6408, desc: 'East Bangalore Core' },
-    { name: 'Koramangala', lat: 12.9279, lng: 77.6271, desc: 'Startup Hub' },
-    { name: 'Whitefield', lat: 12.9698, lng: 77.7499, desc: 'IT Corridor' },
-    { name: 'Majestic', lat: 12.9766, lng: 77.5713, desc: 'Transit Hub' },
-    { name: 'Jayanagar', lat: 12.9299, lng: 77.5826, desc: 'South Bangalore' },
+// ── Fallback presets (used if API call fails) ─────────────────────────────────
+const FALLBACK_LOCATIONS = [
+    { name: 'Indiranagar', district: 'Bangalore Urban',  lat: 12.9784, lng: 77.6408, desc: 'East Bangalore Core' },
+    { name: 'Koramangala', district: 'Bangalore South',  lat: 12.9279, lng: 77.6271, desc: 'Startup Hub' },
+    { name: 'Whitefield',  district: 'Bangalore East',   lat: 12.9698, lng: 77.7499, desc: 'IT Corridor' },
+    { name: 'Majestic',    district: 'Bangalore Central',lat: 12.9766, lng: 77.5713, desc: 'Transit Hub' },
+    { name: 'Jayanagar',   district: 'Bangalore South',  lat: 12.9299, lng: 77.5826, desc: 'South Bangalore' },
 ];
 
 export default function LocationPickerModal({ visible, onClose, onSelect }) {
@@ -16,6 +18,40 @@ export default function LocationPickerModal({ visible, onClose, onSelect }) {
     const [customLng, setCustomLng] = useState('');
     const { isDark } = useColorScheme();
     const iconDim = isDark ? '#9CA3AF' : '#6B7280';
+
+    // ── Dynamic location state ────────────────────────────────────
+    const [presetLocations, setPresetLocations] = useState(FALLBACK_LOCATIONS);
+    const [loading, setLoading]                 = useState(false);
+    const [fetchError, setFetchError]           = useState(false);
+
+    // Fetch once when the modal first becomes visible
+    useEffect(() => {
+        if (!visible) return;
+
+        let cancelled = false;
+
+        const load = async () => {
+            setLoading(true);
+            setFetchError(false);
+            try {
+                const locations = await fetchLocations();
+                if (!cancelled && locations.length > 0) {
+                    setPresetLocations(locations);
+                }
+                // If API returns empty array we keep the fallback already in state
+            } catch {
+                if (!cancelled) {
+                    setFetchError(true);
+                    setPresetLocations(FALLBACK_LOCATIONS);
+                }
+            } finally {
+                if (!cancelled) setLoading(false);
+            }
+        };
+
+        load();
+        return () => { cancelled = true; };
+    }, [visible]);
 
     const handleCustomSubmit = () => {
         const lat = parseFloat(customLat);
@@ -49,10 +85,29 @@ export default function LocationPickerModal({ visible, onClose, onSelect }) {
                     </View>
 
                     <ScrollView className="p-5 flex-1" showsVerticalScrollIndicator={false}>
-                        <Text className="text-txtMuted text-xs font-bold uppercase tracking-wider mb-3">Preset Areas</Text>
-                        {PRESET_LOCATIONS.map((loc) => (
+
+                        {/* Section header — shows loading/fallback badge inline */}
+                        <View className="flex-row items-center mb-3">
+                            <Text className="text-txtMuted text-xs font-bold uppercase tracking-wider flex-1">
+                                Preset Areas
+                            </Text>
+                            {loading && (
+                                <ActivityIndicator size="small" color="#6366F1" />
+                            )}
+                            {!loading && fetchError && (
+                                <Text className="text-xs text-amber-500">Using defaults</Text>
+                            )}
+                            {!loading && !fetchError && (
+                                <Text className="text-xs text-txtMuted">
+                                    {presetLocations.length} area{presetLocations.length !== 1 ? 's' : ''}
+                                </Text>
+                            )}
+                        </View>
+
+                        {/* Preset location list — exact same card UI as before */}
+                        {presetLocations.map((loc) => (
                             <TouchableOpacity
-                                key={loc.name}
+                                key={`${loc.name}-${loc.district}`}
                                 onPress={() => onSelect(loc.lat, loc.lng, loc.name)}
                                 className="bg-card px-4 py-3 rounded-2xl mb-3 flex-row items-center border border-cardBorder"
                                 activeOpacity={0.7}
@@ -62,15 +117,20 @@ export default function LocationPickerModal({ visible, onClose, onSelect }) {
                                 </View>
                                 <View className="flex-1">
                                     <Text className="text-txt font-bold">{loc.name}</Text>
-                                    <Text className="text-txtMuted text-xs">{loc.desc}</Text>
+                                    <Text className="text-txtMuted text-xs">{loc.desc || loc.district}</Text>
                                 </View>
                                 <View className="items-end">
-                                    <Text className="text-txtMuted text-[10px] font-mono">{loc.lat}</Text>
-                                    <Text className="text-txtMuted text-[10px] font-mono">{loc.lng}</Text>
+                                    <Text className="text-txtMuted text-[10px] font-mono">
+                                        {typeof loc.lat === 'number' ? loc.lat.toFixed(4) : loc.lat}
+                                    </Text>
+                                    <Text className="text-txtMuted text-[10px] font-mono">
+                                        {typeof loc.lng === 'number' ? loc.lng.toFixed(4) : loc.lng}
+                                    </Text>
                                 </View>
                             </TouchableOpacity>
                         ))}
 
+                        {/* Custom Coordinates section — unchanged */}
                         <Text className="text-txtMuted text-xs font-bold uppercase tracking-wider mt-5 mb-3">Custom Coordinates</Text>
                         <View className="bg-card p-4 rounded-2xl border border-cardBorder mb-10">
                             <View className="flex-row gap-3 mb-3">

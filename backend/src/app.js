@@ -16,6 +16,7 @@ const notificationsRoutes = require('./routes/notifications.routes');
 const analyticsRoutes = require('./routes/analytics.routes');
 const indoorNavRoutes = require('./routes/indoor-navigation.routes');
 const adminRoutes = require('./routes/admin.routes');
+const locationsRoutes = require('./routes/locations.routes');
 
 const app = express();
 
@@ -69,6 +70,7 @@ app.use('/api/notifications', notificationsRoutes);
 app.use('/api/analytics', analyticsRoutes);
 app.use('/api', indoorNavRoutes);  // Indoor navigation routes
 app.use('/api/admin', adminRoutes);  // Admin routes (protected)
+app.use('/api/locations', locationsRoutes);  // Dynamic preset locations
 
 // ── 404 Handler ────────────────────────────────────────────────
 app.use((req, res) => {

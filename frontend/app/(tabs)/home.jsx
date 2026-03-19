@@ -1,7 +1,7 @@
 /**
  * app/(tabs)/home.jsx — Real project feed from backend
  */
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, Image, ActivityIndicator, RefreshControl } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -88,6 +88,7 @@ export default function HomeScreen() {
     const [projects, setProjects] = useState([]);
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
+    const [locationFilter, setLocationFilter] = useState(null); // name of manually-selected location
     const { isDark } = useColorScheme();
     const iconDim = isDark ? '#9CA3AF' : '#6B7280';
 
@@ -116,12 +117,29 @@ export default function HomeScreen() {
         loadProjects(coords?.lat, coords?.lng);
     };
 
-    const nearestProject = projects.find(p => p.distance_m != null) || null;
-
     const handleManualSelection = (lat, lng, name) => {
         setManual({ lat, lng, label: name });
+        // Only set a location filter for named preset locations (not 'Custom Location')
+        setLocationFilter(name !== 'Custom Location' ? name : null);
         setShowLocationModal(false);
     };
+
+    // Clear the filter when GPS mode is restored
+    useEffect(() => {
+        if (mode === 'gps') setLocationFilter(null);
+    }, [mode]);
+
+    // Apply location filter: when a preset is selected, show ONLY matching projects
+    const visibleProjects = useMemo(() => {
+        if (!locationFilter) return projects;
+        const needle = locationFilter.toLowerCase();
+        return projects.filter(p =>
+            (p.area && p.area.toLowerCase().includes(needle)) ||
+            (p.district && p.district.toLowerCase().includes(needle))
+        );
+    }, [projects, locationFilter]);
+
+    const nearestProject = visibleProjects.find(p => p.distance_m != null) || null;
 
     return (
         <SafeAreaView className="flex-1 bg-main">
@@ -202,7 +220,7 @@ export default function HomeScreen() {
                         />
                         <View className="absolute inset-x-0 bottom-6 items-center">
                             <Text className="text-white font-mono text-xs bg-black/50 px-3 py-1 rounded-full mb-4">
-                                {t('home.projects_found', { count: projects.length, label })}
+                                {t('home.projects_found', { count: visibleProjects.length, label })}
                             </Text>
                         </View>
                     </View>
@@ -220,7 +238,7 @@ export default function HomeScreen() {
                                 <Text className="text-txtMuted text-sm mt-2 text-center">{t('common.try_again')}</Text>
                             </View>
                         ) : (
-                            projects.map(project => (
+                            visibleProjects.map(project => (
                                 <ProjectCard
                                     key={project.id}
                                     project={project}
