@@ -1,5 +1,11 @@
 import { useState, useEffect, useCallback } from 'react';
 import * as Location from 'expo-location';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
+const LOCATION_STORAGE_KEY = 'user_last_location';
+
+// Neutral central Bangalore default — only used on very first launch
+const DEFAULT_LOCATION = { label: 'Bangalore', lat: 12.9716, lng: 77.5946 };
 
 export const PRESET_LOCATIONS = [
   { label: 'Hebbal', lat: 13.0358, lng: 77.5970 },
@@ -28,12 +34,30 @@ export const PRESET_LOCATIONS = [
  */
 export function useLocation() {
   const [mode, setMode] = useState('manual');
-  const [coords, setCoords] = useState({ lat: 13.0358, lng: 77.5970 }); // default: Hebbal
-  const [label, setLabel] = useState('Hebbal');
+  const [coords, setCoords] = useState({ lat: DEFAULT_LOCATION.lat, lng: DEFAULT_LOCATION.lng });
+  const [label, setLabel] = useState(DEFAULT_LOCATION.label);
   const [accuracy, setAccuracy] = useState(null);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [subscription, setSubscription] = useState(null);
+
+  // Restore persisted location on mount
+  useEffect(() => {
+    AsyncStorage.getItem(LOCATION_STORAGE_KEY)
+      .then(saved => {
+        if (saved) {
+          try {
+            const { lat, lng, label: lbl, mode: savedMode } = JSON.parse(saved);
+            setCoords({ lat, lng });
+            setLabel(lbl);
+            // GPS positions are restored as manual since live GPS can't be resumed from storage
+            setMode(savedMode === 'gps' ? 'manual' : savedMode);
+          } catch (_) { /* corrupt data — keep default */ }
+        }
+      })
+      .catch(() => { /* ignore storage errors */ })
+      .finally(() => setLoading(false));
+  }, []);
 
   // Clean up GPS watcher on unmount or mode change
   useEffect(() => {
@@ -64,13 +88,21 @@ export function useLocation() {
       const initial = await Location.getCurrentPositionAsync({
         accuracy: Location.Accuracy.Balanced,
       });
-      setCoords({ lat: initial.coords.latitude, lng: initial.coords.longitude });
+      const lat = initial.coords.latitude;
+      const lng = initial.coords.longitude;
+      setCoords({ lat, lng });
       setAccuracy(initial.coords.accuracy);
       setLabel('Current Location');
       setMode('gps');
       setLoading(false);
 
-      // Then watch for updates
+      // Persist the GPS-obtained coordinates
+      AsyncStorage.setItem(
+        LOCATION_STORAGE_KEY,
+        JSON.stringify({ lat, lng, label: 'Current Location', mode: 'gps' })
+      ).catch(() => {});
+
+      // Watch for subsequent updates
       const sub = await Location.watchPositionAsync(
         { accuracy: Location.Accuracy.Balanced, distanceInterval: 20 },
         (loc) => {
@@ -97,6 +129,12 @@ export function useLocation() {
     setLabel(lbl);
     setMode('manual');
     setError(null);
+
+    // Persist the chosen location so it's restored after login
+    AsyncStorage.setItem(
+      LOCATION_STORAGE_KEY,
+      JSON.stringify({ lat, lng, label: lbl, mode: 'manual' })
+    ).catch(() => {});
   }, [subscription]);
 
   return { coords, label, mode, accuracy, loading, error, startGPS, setManual };

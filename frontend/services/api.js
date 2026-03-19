@@ -15,7 +15,7 @@ const getBaseUrl = () => {
     }
     // For mobile (Android/iOS) - use your computer's IP
     // Find your IP by running: ipconfig (Windows) or ifconfig (Mac/Linux)
-    return 'http://192.168.0.101:3000/api';
+    return 'http://192.168.31.95:3000/api';
 };
 
 export const BASE_URL = getBaseUrl();

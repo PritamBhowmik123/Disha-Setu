@@ -110,7 +110,7 @@ export default function SearchScreen() {
                     ) : (
                         filtered.map(project => {
                             const iconName = CATEGORY_ICONS[project.category] || 'construction';
-                            const progress = project.progress_percentage ?? 0;
+                            const progress = project.progress_percentage ?? project.progress ?? 0;
                             return (
                                 <TouchableOpacity
                                     key={project.id}
