@@ -11,6 +11,7 @@ import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { useColorScheme } from '../../hooks/use-color-scheme';
 import { useLocation } from '../../hooks/use-location';
 import { haversineKm } from '../../utils/distance';
+import { formatDate } from '../../utils/dateFormatter';
 import { fetchProjectById, fetchProjectUpdates } from '../../services/projectService';
 import { fetchBuildings } from '../../services/indoorNavigationService';
 import { CATEGORY_ICONS } from '../../constants/mockData';
@@ -189,7 +190,7 @@ export default function ProjectDetailScreen() {
                         <View className="flex-row items-center gap-1 mt-2">
                             <Ionicons name="time-outline" size={11} color={iconDim} />
                             <Text className="text-txtMuted text-xs">
-                                {t('project.last_updated')}: {project.last_updated ? new Date(project.last_updated).toLocaleDateString() : '–'}
+                                {t('project.last_updated')}: {formatDate(project.last_updated)}
                             </Text>
                         </View>
                     </View>
@@ -209,7 +210,7 @@ export default function ProjectDetailScreen() {
                     <View className="bg-card rounded-xl px-4 border border-cardBorder mb-4">
                         <InfoRow label={t('project.department')} value={project.department} iconName="business-outline" iconType="ion" />
                         <InfoRow label={t('project.budget')} value={project.budget_display} iconName="cash-outline" iconType="ion" />
-                        <InfoRow label={t('project.started')} value={project.start_date} iconName="calendar-outline" iconType="ion" />
+                        <InfoRow label={t('project.started')} value={formatDate(project.start_date)} iconName="calendar-outline" iconType="ion" />
                         <InfoRow label={t('project.expected')} value={project.completion_display} iconName="flag-outline" iconType="ion" />
                         <InfoRow label={t('project.contractor')} value={project.contractor} iconName="construct-outline" iconType="ion" />
                     </View>
@@ -261,7 +262,7 @@ export default function ProjectDetailScreen() {
                                     </View>
                                     <View className="flex-1">
                                         <Text className={`text-sm font-medium ${m.completed ? 'text-txt' : 'text-txtMuted'}`}>{m.title}</Text>
-                                        <Text className="text-txtMuted text-xs mt-0.5">{m.date || m.target_date}</Text>
+                                        <Text className="text-txtMuted text-xs mt-0.5">{formatDate(m.date || m.target_date)}</Text>
                                     </View>
                                     {m.completed && (
                                         <View className="border border-[#00D4AA]/50 rounded-md px-2 py-0.5">
@@ -284,7 +285,7 @@ export default function ProjectDetailScreen() {
                                     style={{ borderBottomWidth: i < Math.min(updates.length, 3) - 1 ? 1 : 0, borderBottomColor: isDark ? '#1F2937' : '#E5E7EB' }}>
                                     <Text className="text-txt font-semibold text-sm mb-1">{u.title}</Text>
                                     {u.body && <Text className="text-txtMuted text-xs leading-5">{u.body}</Text>}
-                                    <Text className="text-txtMuted text-[10px] mt-1.5">{new Date(u.created_at).toLocaleDateString()}</Text>
+                                    <Text className="text-txtMuted text-[10px] mt-1.5">{formatDate(u.created_at)}</Text>
                                 </View>
                             ))}
                         </View>

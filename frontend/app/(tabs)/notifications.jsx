@@ -8,6 +8,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useColorScheme } from '../../hooks/use-color-scheme';
 import { fetchNotifications, markNotificationsRead } from '../../services/notificationService';
+import { formatDateTime } from '../../utils/dateFormatter';
 import { onNewNotification, onGeoAlert } from '../../services/socketService';
 
 const NOTIFICATION_ICONS = {
@@ -37,7 +38,7 @@ function NotifCard({ notif, isLast }) {
                 <Text className="text-txtMuted text-xs leading-5 mt-0.5">{notif.message}</Text>
                 <Text className="text-txtMuted text-[10px] mt-1.5">
                     {notif.projectName && <Text className="font-medium">{notif.projectName} · </Text>}
-                    {notif.time ? new Date(notif.time).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : ''}
+                    {notif.time ? formatDateTime(notif.time) : ''}
                 </Text>
             </View>
         </View>

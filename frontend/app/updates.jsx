@@ -8,6 +8,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useColorScheme } from '../hooks/use-color-scheme';
 import { fetchProjects, fetchProjectUpdates } from '../services/projectService';
+import { formatDate } from '../utils/dateFormatter';
 import { onProjectUpdate } from '../services/socketService';
 
 const STATUS_COLORS = {
@@ -122,7 +123,7 @@ export default function UpdatesScreen() {
                                 {u.body && <Text className="text-txtMuted text-sm leading-5 mb-2 ml-4">{u.body}</Text>}
                                 <View className="flex-row items-center justify-between ml-4">
                                     <Text className="text-[#00D4AA] text-xs font-semibold" numberOfLines={1}>{u.projectName}</Text>
-                                    <Text className="text-[#6B7280] text-xs">{new Date(u.created_at).toLocaleDateString()}</Text>
+                                    <Text className="text-[#6B7280] text-xs">{formatDate(u.created_at)}</Text>
                                 </View>
                             </TouchableOpacity>
                         ))

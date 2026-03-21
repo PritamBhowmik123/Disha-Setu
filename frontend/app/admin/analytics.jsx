@@ -9,6 +9,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useColorScheme } from '../../hooks/use-color-scheme';
 import { useAuth } from '../../context/AuthContext';
+import { formatDate } from '../../utils/dateFormatter';
 import { getFeedbackAnalytics } from '../../services/adminService';
 
 const CATEGORY_COLORS = {
@@ -191,8 +192,7 @@ export default function AdminAnalytics() {
                 {/* Recent Trend */}
                 <SectionCard title="Last 30 Days" icon="trending-up-outline" iconColor="#00D4AA">
                     {trendData.length > 0 ? trendData.slice(-10).map((item, index, arr) => {
-                        const date = new Date(item.date);
-                        const label = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+                        const label = formatDate(item.date);
                         return (
                             <DataRow
                                 key={index}

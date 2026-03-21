@@ -5,6 +5,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useColorScheme } from '../../hooks/use-color-scheme';
 import { useRouter } from 'expo-router';
+import { formatRelativeTime } from '../../utils/dateFormatter';
 import { fetchUserFeedback } from '../../services/feedbackService';
 
 const CATEGORY_COLORS = {
@@ -25,7 +26,7 @@ const STATUS_COLORS = {
 function ActivityItem({ report, isLast }) {
     const color = CATEGORY_COLORS[report.category] || '#6366F1';
     const statusColor = STATUS_COLORS[report.status] || '#9CA3AF';
-    const timeAgo = new Date(report.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    const timeAgo = formatRelativeTime(report.created_at);
 
     return (
         <View className={`py-4 flex-row items-start ${!isLast ? 'border-b border-cardBorder' : ''}`}>
