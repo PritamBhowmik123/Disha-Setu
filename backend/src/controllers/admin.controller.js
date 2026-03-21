@@ -4,6 +4,7 @@
  */
 const { query } = require('../config/db');
 const indoorNavService = require('../services/indoor-navigation.service');
+const incidentService = require('../services/incident-routing.service');
 
 // ═══════════════════════════════════════════════════════════
 // DASHBOARD OVERVIEW
@@ -527,6 +528,108 @@ const updateUserRole = async (req, res, next) => {
     }
 };
 
+// ═══════════════════════════════════════════════════════════
+// INCIDENT MANAGEMENT (Admin)
+// ═══════════════════════════════════════════════════════════
+
+/**
+ * GET /api/admin/incidents — all incidents (active and inactive)
+ */
+const getAllIncidents = async (req, res, next) => {
+    try {
+        const { building_id } = req.query;
+        let sql = `
+            SELECT ni.*, r.name AS room_name, r.type AS room_type
+            FROM navigation_incidents ni
+            LEFT JOIN rooms r ON ni.room_id = r.id
+        `;
+        const params = [];
+        if (building_id) {
+            sql += `
+                WHERE (ni.room_id IS NULL OR ni.room_id IN (
+                    SELECT r2.id FROM rooms r2
+                    JOIN floors f ON r2.floor_id = f.id
+                    WHERE f.building_id = $1
+                ))
+            `;
+            params.push(building_id);
+        }
+        sql += ' ORDER BY ni.created_at DESC';
+        const result = await query(sql, params);
+        res.json({ success: true, data: result.rows });
+    } catch (err) { next(err); }
+};
+
+/**
+ * POST /api/admin/incidents — create a new incident
+ */
+const createIncidentAdmin = async (req, res, next) => {
+    try {
+        const { type, room_id, connection_id, message, severity } = req.body;
+        if (!type || !message) {
+            return res.status(400).json({ error: 'type and message are required' });
+        }
+        const incident = await incidentService.createIncident({
+            type, roomId: room_id || null, connectionId: connection_id || null, message, severity
+        });
+        res.status(201).json({ success: true, data: incident });
+    } catch (err) { next(err); }
+};
+
+/**
+ * PUT /api/admin/incidents/:id — update incident fields
+ */
+const updateIncident = async (req, res, next) => {
+    try {
+        const { id } = req.params;
+        const { type, message, severity, room_id, connection_id } = req.body;
+        const result = await query(
+            `UPDATE navigation_incidents
+             SET type            = COALESCE($1, type),
+                 message         = COALESCE($2, message),
+                 severity        = COALESCE($3, severity),
+                 room_id         = COALESCE($4, room_id),
+                 connection_id   = COALESCE($5, connection_id)
+             WHERE id = $6
+             RETURNING *`,
+            [type, message, severity, room_id, connection_id, id]
+        );
+        if (result.rows.length === 0) return res.status(404).json({ error: 'Incident not found' });
+        incidentService.invalidateCache();
+        res.json({ success: true, data: result.rows[0] });
+    } catch (err) { next(err); }
+};
+
+/**
+ * PATCH /api/admin/incidents/:id/active — toggle is_active
+ */
+const toggleIncidentActive = async (req, res, next) => {
+    try {
+        const { id } = req.params;
+        const { is_active } = req.body; // true or false
+        const result = await query(
+            `UPDATE navigation_incidents SET is_active = $1 WHERE id = $2 RETURNING *`,
+            [is_active !== undefined ? is_active : true, id]
+        );
+        if (result.rows.length === 0) return res.status(404).json({ error: 'Incident not found' });
+        incidentService.invalidateCache();
+        res.json({ success: true, data: result.rows[0] });
+    } catch (err) { next(err); }
+};
+
+/**
+ * DELETE /api/admin/incidents/:id — permanently delete an incident
+ */
+const deleteIncident = async (req, res, next) => {
+    try {
+        const { id } = req.params;
+        const result = await query(`DELETE FROM navigation_incidents WHERE id = $1 RETURNING id`, [id]);
+        if (result.rows.length === 0) return res.status(404).json({ error: 'Incident not found' });
+        incidentService.invalidateCache();
+        res.json({ success: true, message: 'Incident deleted' });
+    } catch (err) { next(err); }
+};
+
 module.exports = {
     // Dashboard
     getDashboardStats,
@@ -550,4 +653,11 @@ module.exports = {
     // User Management
     getAllUsers,
     updateUserRole,
+
+    // Incident Management
+    getAllIncidents,
+    createIncidentAdmin,
+    updateIncident,
+    toggleIncidentActive,
+    deleteIncident,
 };

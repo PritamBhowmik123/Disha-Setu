@@ -9,29 +9,29 @@ const { findRoute, getRoomDetails } = require('./indoor-navigation.service');
 // ── Intent → Room Type Mapping ──────────────────────────────────
 const INTENT_TO_ROOM_TYPE = {
     // Blood / Lab
-    'blood test': 'medical',
-    'lab test': 'medical',
-    'laboratory': 'medical',
-    'sample collection': 'medical',
-    'pathology': 'medical',
-    'haemogram': 'medical',
-    'cbc': 'medical',
-    'radiology': 'medical',
-    'x-ray': 'medical',
-    'xray': 'medical',
-    'mri': 'medical',
-    'ct scan': 'medical',
-    'ultrasound': 'medical',
-    'ecg': 'medical',
-    'echo': 'medical',
+    'blood test': 'lab',
+    'lab test': 'lab',
+    'laboratory': 'lab',
+    'sample collection': 'lab',
+    'pathology': 'lab',
+    'haemogram': 'lab',
+    'cbc': 'lab',
+    'radiology': 'department',
+    'x-ray': 'department',
+    'xray': 'department',
+    'mri': 'department',
+    'ct scan': 'department',
+    'ultrasound': 'department',
+    'ecg': 'department',
+    'echo': 'department',
 
     // Consultation / OPD
-    'consultation': 'office',
-    'opd': 'office',
-    'outpatient': 'office',
-    'doctor': 'office',
-    'appointment': 'office',
-    'specialist': 'office',
+    'consultation': 'reception',
+    'opd': 'reception',
+    'outpatient': 'reception',
+    'doctor': 'reception',
+    'appointment': 'reception',
+    'specialist': 'reception',
 
     // Medicine / Pharmacy
     'medicine': 'shop',
@@ -47,7 +47,7 @@ const INTENT_TO_ROOM_TYPE = {
     'emergency': 'emergency',
     'accident': 'emergency',
     'critical': 'emergency',
-    'urgent': 'emergency',
+    // 'urgent': 'emergency', (Removed: often used as an adjective for labs/radiology)
 
     // Admission / Registration
     'admission': 'reception',
@@ -60,10 +60,12 @@ const INTENT_TO_ROOM_TYPE = {
     'discharge': 'reception',
 
     // Wards / Inpatient
-    'ward': 'waiting',
-    'icu': 'waiting',
-    'bed': 'waiting',
-    'inpatient': 'waiting',
+    'ward': 'department',
+    'icu': 'medical',
+    'surgery': 'medical',
+    'operation': 'medical',
+    'bed': 'department',
+    'inpatient': 'department',
 
     // Facilities
     'cafeteria': 'cafeteria',
@@ -111,14 +113,39 @@ async function extractTextFromBuffer(buffer, mimetype) {
  * @returns {string[]} list of matched intents
  */
 function extractIntentsFromText(text) {
+    if (!text) return [];
+    
     const lower = text.toLowerCase();
-    const found = new Set();
+    const result = [];
+
+    // Match intents and keep track of their first appearance index
     for (const keyword of Object.keys(INTENT_TO_ROOM_TYPE)) {
-        if (lower.includes(keyword)) {
-            found.add(keyword);
+        const regex = new RegExp(`\\b${keyword.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i');
+        const match = regex.exec(lower);
+        if (match) {
+            result.push({
+                intent: keyword,
+                roomType: INTENT_TO_ROOM_TYPE[keyword],
+                index: match.index
+            });
         }
     }
-    return Array.from(found);
+    
+    // Sort by appearance in text to follow the doctor's flow
+    return result.sort((a, b) => a.index - b.index);
+}
+
+function mapIntentsToRoomTypes(intentsWithIndex) {
+    const seenRoomTypes = new Set();
+    const result = [];
+
+    for (const item of intentsWithIndex) {
+        if (!seenRoomTypes.has(item.roomType)) {
+            seenRoomTypes.add(item.roomType);
+            result.push(item);
+        }
+    }
+    return result;
 }
 
 /**
@@ -156,27 +183,57 @@ Only include intents from this list: blood test, lab test, consultation, opd, me
 }
 
 /**
- * Map intents to room types with deduplication and ordering
+ * Map intents to room types with deduplication and ordering.
+ * Accepts either:
+ *  - Array of {intent, roomType, index} objects (from extractIntentsFromText)
+ *  - Array of strings (from Gemini AI extraction)
  */
 function mapIntentsToRoomTypes(intents) {
     const seen = new Set();
     const result = [];
 
-    // Always start with entrance and reception for flow
-    for (const intent of intents) {
-        const roomType = INTENT_TO_ROOM_TYPE[intent];
+    for (const item of intents) {
+        // Support both object form {intent, roomType} and plain string form
+        let keyword, roomType;
+        if (typeof item === 'object' && item !== null) {
+            keyword = item.intent;
+            roomType = item.roomType || INTENT_TO_ROOM_TYPE[keyword];
+        } else {
+            keyword = item;
+            roomType = INTENT_TO_ROOM_TYPE[keyword];
+        }
+
         if (roomType && !seen.has(roomType)) {
             seen.add(roomType);
-            result.push({ intent, roomType });
+            result.push({ intent: keyword, roomType });
         }
     }
     return result;
 }
 
+
 /**
- * Find best matching room for a given type in a building
+ * Find best matching room for a given type or intent in a building
+ * PRIORITY: 1. Exact keyword match (e.g. "x-ray" in room keywords)
+ *           2. Generic room type match (fallback)
  */
-async function findRoomForType(buildingId, roomType) {
+async function findRoomForType(buildingId, roomType, intent = null) {
+    // Stage 1: Try keyword match if intent is provided
+    if (intent) {
+        const keywordMatch = await query(
+            `SELECT r.id, r.name, r.type, f.floor_number
+             FROM rooms r
+             JOIN floors f ON r.floor_id = f.id
+             JOIN buildings b ON f.building_id = b.id
+             WHERE b.id = $1 AND $2 = ANY(r.keywords)
+             ORDER BY r.is_landmark DESC, r.name
+             LIMIT 1`,
+            [buildingId, intent.toLowerCase()]
+        );
+        if (keywordMatch.rows.length > 0) return keywordMatch.rows[0];
+    }
+
+    // Stage 2: Fallback to generic room type
     const result = await query(
         `SELECT r.id, r.name, r.type, f.floor_number
          FROM rooms r
@@ -208,7 +265,8 @@ async function buildMultiStepRoute(orderedRooms, accessibleOnly = false) {
         const toRoom = orderedRooms[i + 1];
 
         try {
-            const route = await findRoute(fromRoom.id, toRoom.id, { accessibleOnly });
+            // FIX: Pass boolean directly, not as an object
+            const route = await findRoute(fromRoom.id, toRoom.id, accessibleOnly);
             if (route.found) {
                 if (combinedPath.length > 0) {
                     combinedPath.push(...route.path.slice(1));
@@ -261,7 +319,7 @@ async function analyzeDocumentAndRoute(fileBuffer, mimetype, buildingId, options
         intents = extractIntentsFromText(rawText || '');
     }
 
-    // Step 3: Map intents to room types
+    // Step 3: Map intents to room types (keeping the text order)
     const mappedRooms = mapIntentsToRoomTypes(intents);
 
     if (mappedRooms.length === 0) {
@@ -282,8 +340,8 @@ async function analyzeDocumentAndRoute(fileBuffer, mimetype, buildingId, options
 
     if (entranceRoom) roomsToVisit.push(entranceRoom);
 
-    for (const { roomType } of mappedRooms) {
-        const room = await findRoomForType(buildingId, roomType);
+    for (const { intent, roomType } of mappedRooms) {
+        const room = await findRoomForType(buildingId, roomType, intent);
         if (room && !roomsToVisit.find(r => r.id === room.id)) {
             roomsToVisit.push(room);
         }

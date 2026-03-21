@@ -1,0 +1,82 @@
+[
+  {
+    "keyword": "blood test",
+    "type": "lab"
+  },
+  {
+    "keyword": "laboratory",
+    "type": "lab"
+  },
+  {
+    "keyword": "cbc",
+    "type": "lab"
+  },
+  {
+    "keyword": "radiology",
+    "type": "department"
+  },
+  {
+    "keyword": "x-ray",
+    "type": "department"
+  },
+  {
+    "keyword": "mri",
+    "type": "department"
+  },
+  {
+    "keyword": "ultrasound",
+    "type": "department"
+  },
+  {
+    "keyword": "opd",
+    "type": "reception"
+  },
+  {
+    "keyword": "doctor",
+    "type": "reception"
+  },
+  {
+    "keyword": "medicine",
+    "type": "shop"
+  },
+  {
+    "keyword": "pharmacy",
+    "type": "shop"
+  },
+  {
+    "keyword": "prescription",
+    "type": "shop"
+  },
+  {
+    "keyword": "medication",
+    "type": "shop"
+  },
+  {
+    "keyword": "emergency",
+    "type": "emergency"
+  },
+  {
+    "keyword": "registration",
+    "type": "reception"
+  },
+  {
+    "keyword": "token",
+    "type": "reception"
+  },
+  {
+    "keyword": "reception",
+    "type": "reception"
+  },
+  {
+    "keyword": "counter",
+    "type": "reception"
+  },
+  {
+    "keyword": "icu",
+    "type": "medical"
+  },
+  {
+    "keyword": "bed",
+    "type": "department"
+  }
+]

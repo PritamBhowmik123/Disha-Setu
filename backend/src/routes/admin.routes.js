@@ -42,4 +42,11 @@ router.post('/navigation/floors', adminController.addFloor);
 router.get('/users', adminController.getAllUsers);
 router.patch('/users/:id/role', adminController.updateUserRole);
 
+// ── Incident Management ────────────────────────────────────
+router.get('/incidents', adminController.getAllIncidents);
+router.post('/incidents', adminController.createIncidentAdmin);
+router.put('/incidents/:id', adminController.updateIncident);
+router.patch('/incidents/:id/active', adminController.toggleIncidentActive);
+router.delete('/incidents/:id', adminController.deleteIncident);
+
 module.exports = router;
