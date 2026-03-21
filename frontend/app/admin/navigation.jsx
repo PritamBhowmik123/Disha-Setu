@@ -10,6 +10,7 @@ import { useColorScheme } from '../../hooks/use-color-scheme';
 import { useAuth } from '../../context/AuthContext';
 import { getNavigationData, deleteRoom, deleteConnection, addRoom, addConnection } from '../../services/adminService';
 import { getBuildings, fetchBuildingFloors } from '../../services/indoorNavigationService';
+import { apiFetch } from '../../services/api';
 import Ionicons from '@expo/vector-icons/Ionicons';
 
 // Room type options
@@ -625,9 +626,9 @@ function AddConnectionModal({ visible, onClose, onAdd, rooms }) {
                             <Text className="text-sm font-medium text-txt">
                                 Wheelchair Accessible
                             </Text>
-                            <Switch 
-                                value={isAccessible} 
-                                onValueChange={setIsAccessible} 
+                            <Switch
+                                value={isAccessible}
+                                onValueChange={setIsAccessible}
                                 trackColor={{ false: '#374151', true: '#00D4AA' }}
                                 thumbColor="#fff"
                             />
@@ -642,9 +643,9 @@ function AddConnectionModal({ visible, onClose, onAdd, rooms }) {
                                     Can travel in both directions
                                 </Text>
                             </View>
-                            <Switch 
-                                value={isBidirectional} 
-                                onValueChange={setIsBidirectional} 
+                            <Switch
+                                value={isBidirectional}
+                                onValueChange={setIsBidirectional}
                                 trackColor={{ false: '#374151', true: '#00D4AA' }}
                                 thumbColor="#fff"
                             />
@@ -679,6 +680,7 @@ export default function AdminNavigationManagement() {
     const [rooms, setRooms] = useState([]);
     const [connections, setConnections] = useState([]);
     const [buildings, setBuildings] = useState([]);
+    const [incidents, setIncidents] = useState([]);
     const [selectedBuilding, setSelectedBuilding] = useState(null);
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
@@ -699,6 +701,7 @@ export default function AdminNavigationManagement() {
             setRooms(navData.rooms || []);
             setConnections(navData.connections || []);
             setBuildings(Array.isArray(buildingsData) ? buildingsData : buildingsData.buildings || []);
+            await loadIncidents();
         } catch (err) {
             console.error('Failed to load navigation data:', err);
             Alert.alert('Error', 'Failed to load navigation data. Please try again.');
@@ -826,6 +829,17 @@ export default function AdminNavigationManagement() {
                         Connections ({connections.length})
                     </Text>
                 </TouchableOpacity>
+
+                <TouchableOpacity
+                    onPress={() => setActiveTab('incidents')}
+                    className={`flex-1 py-3 rounded-xl ${activeTab === 'incidents' ? 'bg-orange-600' : isDark ? 'bg-gray-800' : 'bg-white'
+                        }`}
+                >
+                    <Text className={`text-center font-semibold ${activeTab === 'incidents' ? 'text-white' : isDark ? 'text-gray-300' : 'text-gray-700'
+                        }`}>
+                        🚨 Incidents
+                    </Text>
+                </TouchableOpacity>
             </View>
 
             {/* Add Button in Header */}
@@ -848,7 +862,128 @@ export default function AdminNavigationManagement() {
                     <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#00D4AA" />
                 }
             >
-                {activeTab === 'rooms' ? (
+                {activeTab === 'incidents' ? (
+                    <View>
+                        {/* Create Incident Form */}
+                        <View className={`p-4 rounded-2xl mb-4 border ${isDark ? 'bg-gray-800 border-orange-800' : 'bg-orange-50 border-orange-200'
+                            }`}>
+                            <Text className={`text-base font-bold mb-4 ${isDark ? 'text-orange-300' : 'text-orange-700'
+                                }`}>🚨 Create New Incident</Text>
+
+                            {/* Type Picker */}
+                            <Text className={`text-sm font-medium mb-1 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>Type *</Text>
+                            <TouchableOpacity
+                                onPress={() => setShowIncidentTypePicker(!showIncidentTypePicker)}
+                                className={`p-3 rounded-xl mb-3 border ${isDark ? 'bg-gray-700 border-gray-600' : 'bg-white border-gray-300'}`}>
+                                <Text className={isDark ? 'text-white' : 'text-gray-900'}>{incidentForm.type}</Text>
+                            </TouchableOpacity>
+                            {showIncidentTypePicker && (
+                                <View className={`rounded-xl mb-3 overflow-hidden border ${isDark ? 'border-gray-600' : 'border-gray-200'}`}>
+                                    {INCIDENT_TYPES.map(t => (
+                                        <TouchableOpacity key={t} onPress={() => { setIncidentForm({ ...incidentForm, type: t }); setShowIncidentTypePicker(false); }}
+                                            className={`p-3 border-b ${isDark ? 'border-gray-700 bg-gray-800' : 'border-gray-100 bg-white'}`}>
+                                            <Text className={isDark ? 'text-white' : 'text-gray-900'}>{t}</Text>
+                                        </TouchableOpacity>
+                                    ))}
+                                </View>
+                            )}
+
+                            {/* Severity Picker */}
+                            <Text className={`text-sm font-medium mb-1 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>Severity</Text>
+                            <TouchableOpacity
+                                onPress={() => setShowIncidentSeverityPicker(!showIncidentSeverityPicker)}
+                                className={`p-3 rounded-xl mb-3 border ${isDark ? 'bg-gray-700 border-gray-600' : 'bg-white border-gray-300'}`}>
+                                <Text className={isDark ? 'text-white' : 'text-gray-900'}>{incidentForm.severity}</Text>
+                            </TouchableOpacity>
+                            {showIncidentSeverityPicker && (
+                                <View className={`rounded-xl mb-3 overflow-hidden border ${isDark ? 'border-gray-600' : 'border-gray-200'}`}>
+                                    {INCIDENT_SEVERITIES.map(s => (
+                                        <TouchableOpacity key={s} onPress={() => { setIncidentForm({ ...incidentForm, severity: s }); setShowIncidentSeverityPicker(false); }}
+                                            className={`p-3 border-b ${isDark ? 'border-gray-700 bg-gray-800' : 'border-gray-100 bg-white'}`}>
+                                            <Text className={isDark ? 'text-white' : 'text-gray-900'}>{s}</Text>
+                                        </TouchableOpacity>
+                                    ))}
+                                </View>
+                            )}
+
+                            {/* Message */}
+                            <Text className={`text-sm font-medium mb-1 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>Message *</Text>
+                            <TextInput
+                                value={incidentForm.message}
+                                onChangeText={t => setIncidentForm({ ...incidentForm, message: t })}
+                                placeholder="e.g., Elevator 1 is temporarily out of service"
+                                placeholderTextColor="#9CA3AF"
+                                multiline
+                                numberOfLines={2}
+                                style={{ textAlignVertical: 'top' }}
+                                className={`p-3 rounded-xl mb-3 border ${isDark ? 'bg-gray-700 text-white border-gray-600' : 'bg-white text-gray-900 border-gray-300'}`}
+                            />
+
+                            {/* Room ID (optional) */}
+                            <Text className={`text-sm font-medium mb-1 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>Room ID (optional — affects routing)</Text>
+                            <TextInput
+                                value={incidentForm.room_id}
+                                onChangeText={t => setIncidentForm({ ...incidentForm, room_id: t })}
+                                placeholder="Paste room UUID to block that room"
+                                placeholderTextColor="#9CA3AF"
+                                className={`p-3 rounded-xl mb-4 border ${isDark ? 'bg-gray-700 text-white border-gray-600' : 'bg-white text-gray-900 border-gray-300'}`}
+                            />
+
+                            <TouchableOpacity onPress={handleCreateIncident} disabled={incidentSaving}
+                                className="bg-orange-600 py-3 rounded-xl items-center">
+                                {incidentSaving
+                                    ? <ActivityIndicator color="white" />
+                                    : <Text className="text-white font-bold">Create Incident</Text>}
+                            </TouchableOpacity>
+                        </View>
+
+                        {/* Incident List */}
+                        <Text className={`text-xs font-semibold uppercase mb-3 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+                            {incidents.length} Incident{incidents.length !== 1 ? 's' : ''}
+                        </Text>
+                        {incidents.length === 0 ? (
+                            <View className="items-center py-10">
+                                <Ionicons name="checkmark-circle-outline" size={48} color={isDark ? '#4B5563' : '#D1D5DB'} />
+                                <Text className={`mt-3 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>No incidents. All clear!</Text>
+                            </View>
+                        ) : incidents.map(inc => (
+                            <View key={inc.id} className={`p-4 rounded-2xl mb-3 border ${inc.is_active
+                                    ? isDark ? 'bg-red-950 border-red-700' : 'bg-red-50 border-red-300'
+                                    : isDark ? 'bg-gray-800 border-gray-700' : 'bg-gray-50 border-gray-200'
+                                }`}>
+                                <View className="flex-row items-start justify-between mb-2">
+                                    <View className="flex-1 mr-3">
+                                        <View className="flex-row items-center gap-2 mb-1">
+                                            <View className={`px-2 py-0.5 rounded ${inc.is_active ? 'bg-red-600' : (isDark ? 'bg-gray-600' : 'bg-gray-300')
+                                                }`}>
+                                                <Text className="text-white text-xs font-bold">{inc.is_active ? '● ACTIVE' : '○ INACTIVE'}</Text>
+                                            </View>
+                                            <View className={`px-2 py-0.5 rounded ${isDark ? 'bg-gray-700' : 'bg-gray-200'}`}>
+                                                <Text className={`text-xs font-medium capitalize ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>{inc.severity}</Text>
+                                            </View>
+                                            <Text className={`text-xs capitalize font-semibold ${isDark ? 'text-orange-400' : 'text-orange-600'}`}>{inc.type?.replace(/_/g, ' ')}</Text>
+                                        </View>
+                                        <Text className={`text-sm font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>{inc.message}</Text>
+                                        {inc.room_name && (
+                                            <Text className={`text-xs mt-1 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>📍 {inc.room_name}</Text>
+                                        )}
+                                    </View>
+                                    <TouchableOpacity onPress={() => handleDeleteIncident(inc)} className="p-2">
+                                        <Ionicons name="trash-outline" size={18} color={isDark ? '#F87171' : '#EF4444'} />
+                                    </TouchableOpacity>
+                                </View>
+                                <TouchableOpacity
+                                    onPress={() => handleToggleIncident(inc)}
+                                    className={`py-2 rounded-xl items-center ${inc.is_active ? 'bg-gray-600' : 'bg-orange-600'
+                                        }`}>
+                                    <Text className="text-white text-sm font-bold">
+                                        {inc.is_active ? '⏸ Deactivate' : '▶ Activate'}
+                                    </Text>
+                                </TouchableOpacity>
+                            </View>
+                        ))}
+                    </View>
+                ) : activeTab === 'rooms' ? (
                     rooms.length === 0 ? (
                         <View className="items-center justify-center py-16">
                             <Ionicons name="location-outline" size={64} color={iconDim} />

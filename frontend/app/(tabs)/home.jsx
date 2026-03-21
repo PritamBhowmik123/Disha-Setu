@@ -14,7 +14,7 @@ import { fetchProjects } from '../../services/projectService';
 import { emitLocation } from '../../services/socketService';
 import { CATEGORY_ICONS } from '../../constants/mockData';
 import { useTranslation } from 'react-i18next';
-import MapView, { Marker } from 'react-native-maps';
+import MapView, { Marker } from '../../components/ProjectMap';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 
 const STATUS_COLOR = {

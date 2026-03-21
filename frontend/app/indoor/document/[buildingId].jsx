@@ -268,7 +268,7 @@ export default function DocumentNavigationScreen() {
                                         <View className="flex-row flex-wrap">
                                             {result.intents.map((intent, i) => (
                                                 <View key={i} className="bg-[#F59E0B]/15 px-3 py-1 rounded-full mr-2 mb-2">
-                                                    <Text className="text-[#FDE68A] text-xs font-semibold capitalize">{intent}</Text>
+                                                    <Text className="text-[#FDE68A] text-xs font-semibold capitalize">{typeof intent === 'string' ? intent : intent.intent}</Text>
                                                 </View>
                                             ))}
                                         </View>
@@ -323,7 +323,7 @@ export default function DocumentNavigationScreen() {
                                     <View className="mt-4 w-full bg-[#1A2035] rounded-2xl p-4">
                                         <Text className="text-[#F59E0B] font-bold mb-2">Detected keywords:</Text>
                                         {result.intents.map((i, idx) => (
-                                            <Text key={idx} className="text-[#9CA3AF] text-sm">• {i}</Text>
+                                            <Text key={idx} className="text-[#9CA3AF] text-sm">• {typeof i === 'string' ? i : i.intent}</Text>
                                         ))}
                                     </View>
                                 )}

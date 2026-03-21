@@ -195,6 +195,7 @@ export default function IndoorNavigationScreen() {
     const notifAnim = useRef(new Animated.Value(0)).current;
 
     // ── Incident Routing state (NEW) ──────────────────
+    const [showIncidents, setShowIncidents] = useState(false);
     const [activeIncidents, setActiveIncidents] = useState([]);
     const [routeAdjusted, setRouteAdjusted] = useState(false);
     const [routeFallback, setRouteFallback] = useState(false);
@@ -534,7 +535,7 @@ export default function IndoorNavigationScreen() {
                     </TouchableOpacity>
                 </View>
 
-                {/* ── Incident Alert Banner (non-blocking) ── */}
+                {/* ── Incident Alert Banner (Toggleable) ── */}
                 {(activeIncidents.length > 0 || routeAdjusted || routeFallback) && (
                     <View
                         className="mt-2 mb-1 rounded-2xl px-4 py-3 flex-row items-center"
@@ -555,7 +556,7 @@ export default function IndoorNavigationScreen() {
                                     <Text style={{ color: '#EF4444', fontWeight: '800', fontSize: 13 }}>
                                         {routeFallback ? '⚠️ Route Affected by Incident' : 'Route Adjusted'}
                                     </Text>
-                                    <Text className="text-txtMuted text-[11px] mt-0.5" numberOfLines={1}>
+                                    <Text style={{ color: '#9CA3AF', fontSize: 11, marginTop: 1 }}>
                                         {routeIncidents.map(i => i.message).join(' • ')}
                                     </Text>
                                 </>
@@ -564,15 +565,57 @@ export default function IndoorNavigationScreen() {
                                     <Text style={{ color: '#F59E0B', fontWeight: '800', fontSize: 13 }}>
                                         {activeIncidents.length} Active Incident{activeIncidents.length !== 1 ? 's' : ''}
                                     </Text>
-                                    <Text className="text-txtMuted text-[11px] mt-0.5" numberOfLines={1}>
+                                    <Text style={{ color: '#9CA3AF', fontSize: 11, marginTop: 1 }}>
                                         {activeIncidents[0]?.message}
                                     </Text>
                                 </>
                             )}
                         </View>
                         <TouchableOpacity onPress={() => setActiveTab('smart')} style={{ marginLeft: 8 }}>
-                            <Text className="text-txtMuted text-[11px] font-bold">Details</Text>
+                            <Text style={{ color: '#9CA3AF', fontSize: 11, fontWeight: '700' }}>Details</Text>
                         </TouchableOpacity>
+
+                        {/* Collapsible Incident List */}
+                        {showIncidents && activeIncidents.length > 0 && (
+                            <View className="mt-2 bg-surface border border-cardBorder rounded-2xl p-3">
+                                {activeIncidents.map((inc, idx) => (
+                                    <View
+                                        key={idx}
+                                        className="rounded-xl p-4 mb-3 flex-row items-start border border-cardBorder"
+                                        style={{
+                                            backgroundColor: '#1A2035',
+                                            borderLeftWidth: 4,
+                                            borderLeftColor: inc.severity === 'high' ? '#EF4444' : inc.severity === 'medium' ? '#F59E0B' : '#6B7280',
+                                            shadowColor: '#000',
+                                            shadowOffset: { width: 0, height: 2 },
+                                            shadowOpacity: 0.2,
+                                            shadowRadius: 4,
+                                            elevation: 3
+                                        }}
+                                    >
+                                        <Ionicons
+                                            name={inc.type === 'lift_down' ? 'arrow-up-circle' : inc.type === 'room_closed' ? 'lock-closed' : inc.type === 'blocked_path' ? 'close-circle' : 'construct'}
+                                            size={22}
+                                            color={inc.severity === 'high' ? '#EF4444' : inc.severity === 'medium' ? '#F59E0B' : '#9CA3AF'}
+                                            style={{ marginTop: 1 }}
+                                        />
+                                        <View className="flex-1 ml-4">
+                                            <Text style={{
+                                                color: inc.severity === 'high' ? '#EF4444' : inc.severity === 'medium' ? '#F59E0B' : 'white',
+                                                fontWeight: '800',
+                                                fontSize: 14,
+                                                textTransform: 'uppercase',
+                                                letterSpacing: 0.5
+                                            }}>
+                                                {inc.type.replace(/_/g, ' ')}
+                                                {inc.room_name ? ` • ${inc.room_name}` : ''}
+                                            </Text>
+                                            <Text style={{ color: '#E5E7EB', fontSize: 12, marginTop: 4, lineHeight: 18, fontWeight: '500' }}>{inc.message}</Text>
+                                        </View>
+                                    </View>
+                                ))}
+                            </View>
+                        )}
                     </View>
                 )}
 
@@ -637,8 +680,8 @@ export default function IndoorNavigationScreen() {
                                 key={floor.id}
                                 onPress={() => changeFloor(floor)}
                                 className={`px-6 py-3 rounded-2xl mr-3 border ${selectedFloor?.id === floor.id
-                                        ? 'bg-[#00D4AA] border-[#00D4AA]'
-                                        : 'bg-card border-cardBorder'
+                                    ? 'bg-[#00D4AA] border-[#00D4AA]'
+                                    : 'bg-card border-cardBorder'
                                     }`}
                                 style={selectedFloor?.id === floor.id ? {
                                     shadowColor: '#00D4AA', shadowOffset: { width: 0, height: 2 },
@@ -769,7 +812,7 @@ export default function IndoorNavigationScreen() {
                             {activeIncidents.map((inc, idx) => (
                                 <View
                                     key={idx}
-                                    className="rounded-2xl p-4 mb-2 flex-row items-start border border-cardBorder"
+                                    className="rounded-2xl p-4 mb-2 flex-row items-start"
                                     style={{
                                         backgroundColor: inc.severity === 'high' ? 'rgba(239,68,68,0.12)' : inc.severity === 'medium' ? 'rgba(245,158,11,0.1)' : 'rgba(107,114,128,0.1)',
                                         borderLeftWidth: 4,
@@ -783,11 +826,11 @@ export default function IndoorNavigationScreen() {
                                         style={{ marginTop: 1 }}
                                     />
                                     <View className="flex-1 ml-3">
-                                        <Text className="text-txt font-bold text-[13px]">
+                                        <Text style={{ color: 'white', fontWeight: '700', fontSize: 13 }}>
                                             {inc.type.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}
                                             {inc.room_name ? ` — ${inc.room_name}` : ''}
                                         </Text>
-                                        <Text className="text-txtMuted text-xs mt-0.5">{inc.message}</Text>
+                                        <Text style={{ color: '#9CA3AF', fontSize: 12, marginTop: 2 }}>{inc.message}</Text>
                                         <View style={{ flexDirection: 'row', marginTop: 4 }}>
                                             <View style={{ backgroundColor: inc.severity === 'high' ? 'rgba(239,68,68,0.2)' : 'rgba(245,158,11,0.2)', borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2 }}>
                                                 <Text style={{ color: inc.severity === 'high' ? '#EF4444' : '#F59E0B', fontSize: 10, fontWeight: '700', textTransform: 'uppercase' }}>{inc.severity} severity</Text>
@@ -801,11 +844,16 @@ export default function IndoorNavigationScreen() {
 
                     {smartMode === 'input' && (
                         <View>
-                            {/* Info Banner */}
-                            <View className="bg-[#F59E0B]/10 border border-[#F59E0B]/30 rounded-2xl p-4 mb-5 flex-row items-start">
-                                <Ionicons name="document-text-outline" size={20} color="#F59E0B" style={{ marginRight: 10, marginTop: 1 }} />
-                                <Text className="text-[#FDE68A] text-sm flex-1 leading-5">
-                                    Describe your visit or upload a prescription / token — we'll auto-generate your navigation route.
+                            {/* Improved Info Banner */}
+                            <View className="bg-[#1D2B44] border-l-4 border-[#3B82F6] rounded-xl p-5 mb-6" style={{ shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.1, shadowRadius: 8, elevation: 3 }}>
+                                <View className="flex-row items-center mb-2">
+                                    <View className="bg-[#3B82F6]/20 p-2 rounded-full mr-3">
+                                        <Ionicons name="sparkles" size={20} color="#60A5FA" />
+                                    </View>
+                                    <Text className="text-white font-bold text-base flex-1">Smart Route Generator</Text>
+                                </View>
+                                <Text className="text-[#9CA3AF] text-sm leading-5">
+                                    Describe your visit or upload a prescription / token — we'll automatically extract your needs and map your exact navigation route.
                                 </Text>
                             </View>
 
@@ -897,7 +945,7 @@ export default function IndoorNavigationScreen() {
                                             <View className="flex-row flex-wrap">
                                                 {smartResult.intents.map((intent, i) => (
                                                     <View key={i} className="bg-[#F59E0B]/15 px-3 py-1 rounded-full mr-2 mb-2">
-                                                        <Text className="text-[#FDE68A] text-xs font-semibold capitalize">{intent}</Text>
+                                                        <Text className="text-[#FDE68A] text-xs font-semibold capitalize">{typeof intent === 'string' ? intent : intent.intent}</Text>
                                                     </View>
                                                 ))}
                                             </View>
@@ -993,6 +1041,15 @@ export default function IndoorNavigationScreen() {
                                         <Ionicons name="checkmark-circle" size={22} color="#10B981" />
                                         <Text className="text-[#10B981] font-bold text-base ml-2">Route Ready!</Text>
                                     </View>
+
+                                    {/* Reset Button to generate another route */}
+                                    <TouchableOpacity
+                                        onPress={resetSmart}
+                                        className="mb-8 border border-[#374151] bg-[#1A2035] rounded-2xl py-3 flex-row items-center justify-center"
+                                    >
+                                        <Ionicons name="refresh-outline" size={18} color="#9CA3AF" />
+                                        <Text className="text-[#9CA3AF] font-bold text-base ml-2">Generate Another Route</Text>
+                                    </TouchableOpacity>
                                 </>
                             ) : (
                                 <View className="items-center py-10">
@@ -1014,14 +1071,14 @@ export default function IndoorNavigationScreen() {
             {/* Smart Assist Tab - History Integration */}
             {activeTab === 'smart' && insightHistory.length > 0 && (
                 <View className="px-5 pb-6">
-                    <View className="flex-row items-center mb-4 mt-6">
+                    <View className="flex-row items-center mb-3 mt-4">
                         <Ionicons name="time-outline" size={18} color="#9CA3AF" />
-                        <Text className="text-txtMuted text-xs font-bold ml-2 uppercase tracking-widest">Recent Discovery Log</Text>
+                        <Text className="text-[#9CA3AF] text-sm font-bold ml-2 uppercase tracking-tight">Recent Discovery Log</Text>
                     </View>
                     {insightHistory.map((item, idx) => (
-                        <View key={idx} className="bg-card rounded-2xl p-4 mb-3 border border-cardBorder border-l-4 border-[#00D4AA]">
-                            <Text className="text-txt font-bold text-sm">{item.title}</Text>
-                            <Text className="text-txtMuted text-xs mt-1 leading-5">{item.description}</Text>
+                        <View key={idx} className="bg-[#1A2035] rounded-2xl p-4 mb-3 border-l-4 border-[#00D4AA]">
+                            <Text className="text-white font-bold text-sm">{item.title}</Text>
+                            <Text className="text-[#9CA3AF] text-xs mt-1">{item.description}</Text>
                         </View>
                     ))}
                 </View>
