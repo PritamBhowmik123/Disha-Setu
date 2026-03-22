@@ -6,6 +6,9 @@ const { query } = require('../config/db');
 const { generateOTP, verifyOTP } = require('../services/otp.service');
 const { signToken } = require('../middleware/auth.middleware');
 const { v4: uuidv4 } = require('uuid');
+const { OAuth2Client } = require('google-auth-library');
+
+const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
 // ── POST /api/auth/send-otp ────────────────────────────────────
 const sendOTP = async (req, res, next) => {
@@ -80,22 +83,30 @@ const googleAuth = async (req, res, next) => {
         }
 
         // Verify Google ID token
-        // In production: use google-auth-library to verify
-        // For scaffold: decode and trust (dev only)
         let googlePayload;
         try {
             // Check if it's a JWT (3 parts) or simple base64 token
             if (idToken.includes('.')) {
-                // JWT format: decode middle part
-                const base64Url = idToken.split('.')[1];
-                const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-                googlePayload = JSON.parse(Buffer.from(base64, 'base64').toString());
+                if (process.env.GOOGLE_CLIENT_ID) {
+                    // Securely verify signature and audience Native/Web
+                    const ticket = await googleClient.verifyIdToken({
+                        idToken,
+                        audience: process.env.GOOGLE_CLIENT_ID,
+                    });
+                    googlePayload = ticket.getPayload();
+                } else {
+                    // Fallback development scaffold
+                    const base64Url = idToken.split('.')[1];
+                    const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+                    googlePayload = JSON.parse(Buffer.from(base64, 'base64').toString());
+                }
             } else {
                 // Simple base64 format (from accessToken flow)
                 googlePayload = JSON.parse(Buffer.from(idToken, 'base64').toString());
             }
-        } catch (_) {
-            return res.status(401).json({ error: 'Invalid Google token' });
+        } catch (err) {
+            console.error('Google Auth Signature Error:', err);
+            return res.status(401).json({ error: 'Invalid Google token signature' });
         }
 
         const googleId = googlePayload.sub;
