@@ -16,7 +16,7 @@ function dijkstra(graph, startId, endId, accessibleOnly = false) {
     const distances = {};
     const previous = {};
     const unvisited = new Set();
-    
+
     // Initialize
     for (const nodeId in graph) {
         distances[nodeId] = Infinity;
@@ -24,38 +24,38 @@ function dijkstra(graph, startId, endId, accessibleOnly = false) {
         unvisited.add(nodeId);
     }
     distances[startId] = 0;
-    
+
     while (unvisited.size > 0) {
         // Find unvisited node with minimum distance
         let currentId = null;
         let minDist = Infinity;
-        
+
         for (const nodeId of unvisited) {
             if (distances[nodeId] < minDist) {
                 minDist = distances[nodeId];
                 currentId = nodeId;
             }
         }
-        
+
         // If no reachable nodes left or reached destination
         if (currentId === null || distances[currentId] === Infinity) {
             break;
         }
-        
+
         if (currentId === endId) {
             break;
         }
-        
+
         unvisited.delete(currentId);
-        
+
         // Update distances to neighbors
         const neighbors = graph[currentId] || [];
         for (const neighbor of neighbors) {
             if (!unvisited.has(neighbor.id)) continue;
-            
+
             // Skip non-accessible routes if accessibility required
             if (accessibleOnly && !neighbor.accessible) continue;
-            
+
             const altDistance = distances[currentId] + neighbor.distance;
             if (altDistance < distances[neighbor.id]) {
                 distances[neighbor.id] = altDistance;
@@ -63,21 +63,21 @@ function dijkstra(graph, startId, endId, accessibleOnly = false) {
             }
         }
     }
-    
+
     // Reconstruct path
     const path = [];
     let current = endId;
-    
+
     while (current !== null) {
         path.unshift(current);
         current = previous[current];
     }
-    
+
     // If path doesn't start with startId, no path found
     if (path[0] !== startId) {
         return { path: [], distance: Infinity, found: false };
     }
-    
+
     return {
         path,
         distance: distances[endId],
@@ -90,28 +90,28 @@ function dijkstra(graph, startId, endId, accessibleOnly = false) {
  */
 async function buildGraph(accessibleOnly = false) {
     const graph = {};
-    
+
     // Fetch all connections
     const result = await query(
         `SELECT c.from_room, c.to_room, c.distance, c.is_bidirectional, c.is_accessible
          FROM connections c`
     );
-    
+
     for (const conn of result.rows) {
         const fromId = conn.from_room;
         const toId = conn.to_room;
         const distance = parseFloat(conn.distance);
         const accessible = conn.is_accessible;
-        
+
         // Initialize adjacency lists
         if (!graph[fromId]) graph[fromId] = [];
         if (!graph[toId]) graph[toId] = [];
-        
+
         // Add forward edge
         if (!accessibleOnly || accessible) {
             graph[fromId].push({ id: toId, distance, accessible });
         }
-        
+
         // Add backward edge if bidirectional
         if (conn.is_bidirectional) {
             if (!accessibleOnly || accessible) {
@@ -119,7 +119,7 @@ async function buildGraph(accessibleOnly = false) {
             }
         }
     }
-    
+
     return graph;
 }
 
@@ -136,7 +136,7 @@ async function getRoomDetails(roomId) {
          WHERE r.id = $1`,
         [roomId]
     );
-    
+
     return result.rows[0] || null;
 }
 
@@ -145,15 +145,15 @@ async function getRoomDetails(roomId) {
  */
 async function generateDirections(path) {
     if (path.length === 0) return [];
-    
+
     const directions = [];
-    
+
     for (let i = 0; i < path.length; i++) {
         const room = await getRoomDetails(path[i]);
         if (!room) continue;
-        
+
         let instruction = '';
-        
+
         if (i === 0) {
             instruction = `Start at ${room.name} (Floor ${room.floor_number})`;
         } else if (i === path.length - 1) {
@@ -161,7 +161,7 @@ async function generateDirections(path) {
         } else {
             // Check for floor changes
             const prevRoom = await getRoomDetails(path[i - 1]);
-            
+
             if (prevRoom && prevRoom.floor_number !== room.floor_number) {
                 if (room.type === 'elevator') {
                     instruction = `Take elevator to Floor ${room.floor_number}`;
@@ -178,7 +178,7 @@ async function generateDirections(path) {
                 }
             }
         }
-        
+
         directions.push({
             step: i + 1,
             roomId: room.id,
@@ -188,7 +188,7 @@ async function generateDirections(path) {
             instruction,
         });
     }
-    
+
     return directions;
 }
 
@@ -197,41 +197,41 @@ async function generateDirections(path) {
  */
 async function findRoute(fromRoomId, toRoomId, options = {}) {
     const { accessibleOnly = false } = options;
-    
+
     // Validate rooms exist
     const fromRoom = await getRoomDetails(fromRoomId);
     const toRoom = await getRoomDetails(toRoomId);
-    
+
     if (!fromRoom) {
         throw new Error('Starting room not found');
     }
     if (!toRoom) {
         throw new Error('Destination room not found');
     }
-    
+
     // Check if rooms are in the same building
     if (fromRoom.building_id !== toRoom.building_id) {
         throw new Error('Rooms are in different buildings. Indoor navigation only works within a single building.');
     }
-    
+
     // Build graph
     const graph = await buildGraph(accessibleOnly);
-    
+
     // Run Dijkstra
     const result = dijkstra(graph, fromRoomId, toRoomId, accessibleOnly);
-    
+
     if (!result.found || result.distance === Infinity) {
         return {
             found: false,
-            message: accessibleOnly 
+            message: accessibleOnly
                 ? 'No accessible route found. Try without accessibility filter.'
                 : 'No route found between these locations.',
         };
     }
-    
+
     // Generate turn-by-turn directions
     const directions = await generateDirections(result.path);
-    
+
     return {
         found: true,
         distance: result.distance,
@@ -271,16 +271,16 @@ async function searchRooms(searchTerm, buildingId = null) {
             )
         )
     `;
-    
+
     const params = [`%${searchTerm}%`];
-    
+
     if (buildingId) {
         sql += ` AND b.id = $2`;
         params.push(buildingId);
     }
-    
+
     sql += ` ORDER BY r.is_landmark DESC, r.name LIMIT 20`;
-    
+
     const result = await query(sql, params);
     return result.rows;
 }
@@ -302,7 +302,7 @@ async function getBuildings() {
          GROUP BY b.id, p.name, p.category
          ORDER BY b.created_at DESC`
     );
-    
+
     return result.rows;
 }
 
@@ -319,13 +319,13 @@ async function getBuildingById(buildingId) {
          WHERE b.id = $1`,
         [buildingId]
     );
-    
+
     if (buildingResult.rows.length === 0) {
         return null;
     }
-    
+
     const building = buildingResult.rows[0];
-    
+
     // Get floors
     const floorsResult = await query(
         `SELECT f.*, COUNT(r.id) AS room_count
@@ -336,9 +336,9 @@ async function getBuildingById(buildingId) {
          ORDER BY f.floor_number`,
         [buildingId]
     );
-    
+
     building.floors = floorsResult.rows;
-    
+
     return building;
 }
 
@@ -353,21 +353,21 @@ async function getFloorById(floorId) {
          WHERE f.id = $1`,
         [floorId]
     );
-    
+
     if (floorResult.rows.length === 0) {
         return null;
     }
-    
+
     const floor = floorResult.rows[0];
-    
+
     // Get rooms
     const roomsResult = await query(
         `SELECT * FROM rooms WHERE floor_id = $1 ORDER BY name`,
         [floorId]
     );
-    
+
     floor.rooms = roomsResult.rows;
-    
+
     return floor;
 }
 

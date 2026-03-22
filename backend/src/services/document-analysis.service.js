@@ -114,7 +114,7 @@ async function extractTextFromBuffer(buffer, mimetype) {
  */
 function extractIntentsFromText(text) {
     if (!text) return [];
-    
+
     const lower = text.toLowerCase();
     const result = [];
 
@@ -130,7 +130,7 @@ function extractIntentsFromText(text) {
             });
         }
     }
-    
+
     // Sort by appearance in text to follow the doctor's flow
     return result.sort((a, b) => a.index - b.index);
 }
@@ -348,8 +348,8 @@ async function analyzeDocumentAndRoute(fileBuffer, mimetype, buildingId, options
     }
 
     // Step 5: Build the route
-    const route = roomsToVisit.length >= 2 
-        ? await buildMultiStepRoute(roomsToVisit, accessibleOnly) 
+    const route = roomsToVisit.length >= 2
+        ? await buildMultiStepRoute(roomsToVisit, accessibleOnly)
         : { found: false, message: 'Could not find enough rooms in this building for the detected intents.' };
 
     return {

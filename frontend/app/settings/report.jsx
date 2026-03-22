@@ -4,6 +4,7 @@ import { useRouter } from 'expo-router';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import * as ImagePicker from 'expo-image-picker';
 import { useTranslation } from 'react-i18next';
+import { detectAIImage } from '../../utils/aiImageDetector';
 import { useColorScheme } from '../../hooks/use-color-scheme';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -16,6 +17,8 @@ export default function ReportProblemScreen() {
     const [description, setDescription] = useState('');
     const [image, setImage] = useState(null);
     const [showDropdown, setShowDropdown] = useState(false);
+    // AI validation: null | 'checking' | 'real' | 'ai' | 'uncertain'
+    const [aiValidation, setAiValidation] = useState(null);
 
     const categories = [
         t('help.categories.status'),
@@ -33,16 +36,31 @@ export default function ReportProblemScreen() {
             allowsEditing: true,
             aspect: [16, 9],
             quality: 0.7,
+            exif: true, // needed for AI detection heuristic
         });
 
         if (!result.canceled) {
-            setImage(result.assets[0].uri);
+            const asset = result.assets[0];
+            setImage(asset.uri);
+            // ── Trigger AI detection immediately after pick ──────────────
+            setAiValidation('checking');
+            const verdict = await detectAIImage(asset);
+            setAiValidation(verdict === 'uncertain' ? 'real' : verdict);
         }
     };
 
     const handleSubmit = () => {
         if (!category || !description) {
             Alert.alert(t('help.missing_info'), t('help.missing_info_desc'));
+            return;
+        }
+
+        // ── Block submission if AI image detected ────────────────────────
+        if (image && aiValidation === 'ai') {
+            Alert.alert(
+                'Image Not Accepted',
+                'This image appears to be AI-generated. Please upload a real photo.'
+            );
             return;
         }
 
@@ -137,7 +155,7 @@ export default function ReportProblemScreen() {
                                         resizeMode="cover"
                                     />
                                     <TouchableOpacity
-                                        onPress={() => setImage(null)}
+                                        onPress={() => { setImage(null); setAiValidation(null); }}
                                         className="absolute top-2 right-2 bg-black/50 p-1 rounded-full"
                                     >
                                         <Ionicons name="close" size={20} color="white" />
@@ -156,10 +174,30 @@ export default function ReportProblemScreen() {
                             )}
                         </View>
 
+                        {/* ── AI Validation Feedback (inline) ── */}
+                        {aiValidation === 'checking' && (
+                            <Text className="text-[#F59E0B] text-xs mb-4 text-center italic">
+                                Analyzing image authenticity...
+                            </Text>
+                        )}
+                        {aiValidation === 'real' && (
+                            <Text className="text-[#10B981] text-xs mb-4 text-center font-semibold">
+                                ✔ Real image verified
+                            </Text>
+                        )}
+                        {aiValidation === 'ai' && (
+                            <Text className="text-[#EF4444] text-xs mb-4 text-center font-semibold">
+                                ❌ AI-generated image detected. Please upload a real photo.
+                            </Text>
+                        )}
+                        {/* ──────────────────────────────────────── */}
+
                         {/* Submit Button */}
                         <TouchableOpacity
                             className="bg-[#00D4AA] py-4 rounded-2xl items-center shadow-lg shadow-[#00D4AA30]"
+                            style={{ opacity: aiValidation === 'ai' ? 0.55 : 1 }}
                             onPress={handleSubmit}
+                            disabled={aiValidation === 'ai'}
                         >
                             <Text className="text-black font-bold text-lg">{t('help.submit_report')}</Text>
                         </TouchableOpacity>

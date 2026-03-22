@@ -27,6 +27,7 @@ const SERVER_ROOT = BASE_URL.replace(/\/api\/?$/, '');
 
 import ZeroReadOverlayUI from '../../components/ZeroReadOverlayUI';
 import { VoiceHapticEngine } from '../../services/VoiceHapticEngine';
+import { useTranslation } from 'react-i18next';
 
 
 const ROOM_TYPE_ICONS = {
@@ -170,6 +171,7 @@ export default function IndoorNavigationScreen() {
     const { buildingId } = useLocalSearchParams();
     const router = useRouter();
     const { isDark } = useColorScheme();
+    const { i18n } = useTranslation();
 
     // ── Tab state (NEW) ──────────────────────────────────────
     const [activeTab, setActiveTab] = useState('navigation'); // 'navigation' | 'smart'
@@ -394,7 +396,7 @@ export default function IndoorNavigationScreen() {
         setCurrentStepIndex(0);
 
         if (route?.directions?.[0]) {
-            VoiceHapticEngine.triggerInstruction(route.directions[0]);
+            VoiceHapticEngine.triggerInstruction(route.directions[0], i18n.language);
         }
 
         // Auto-trigger insight for first step
@@ -418,7 +420,7 @@ export default function IndoorNavigationScreen() {
         }
 
         if (route?.directions?.[nextIdx]) {
-            VoiceHapticEngine.triggerInstruction(route.directions[nextIdx]);
+            VoiceHapticEngine.triggerInstruction(route.directions[nextIdx], i18n.language);
         }
 
         const insights = buildingInsights[route.directions[nextIdx].roomId];
@@ -816,355 +818,355 @@ export default function IndoorNavigationScreen() {
                             </View>
                         </View>
                     ) : searchMode && searchResults.length > 0 ? (
-                            <View>
-                                <Text className="text-txtMuted text-sm mb-3">
-                                    {searchResults.length} result{searchResults.length !== 1 ? 's' : ''} found
-                                </Text>
-                                {searchResults.map((room) => (
-                                    <RoomCard key={room.id} room={room} onPress={selectRoom}
-                                        isSelected={startRoom?.id === room.id || endRoom?.id === room.id} />
-                                ))}
-                            </View>
-                            ) : searchMode ? (
-                            <View className="items-center justify-center py-12">
-                                <Ionicons name="search-outline" size={48} color="#6B7280" />
-                                <Text className="text-txtMuted mt-4">No results found</Text>
-                            </View>
-                            ) : (
-                            <View>
-                                <Text className="text-txtMuted text-sm mb-3">
-                                    {rooms.length} room{rooms.length !== 1 ? 's' : ''} on this floor
-                                </Text>
-                                {rooms.map((room) => (
-                                    <RoomCard key={room.id} room={room} onPress={selectRoom}
-                                        isSelected={startRoom?.id === room.id || endRoom?.id === room.id} />
-                                ))}
-                            </View>
-                    )}
-                        </ScrollView>
-                    )}
-
-                    {/* ── SMART ASSIST TAB (NEW) ── */}
-                    {activeTab === 'smart' && (
-                        <ScrollView ref={smartScrollViewRef} className="flex-1 px-5 py-4" showsVerticalScrollIndicator={false}>
-
-                            {/* Incident List — removed to avoid duplication with global dropdown */}
-
-                            {smartMode === 'input' && (
-                                <View>
-                                    {/* Improved Info Banner */}
-                                    <View className="bg-[#1D2B44] border-l-4 border-[#3B82F6] rounded-xl p-5 mb-6" style={{ shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.1, shadowRadius: 8, elevation: 3 }}>
-                                        <View className="flex-row items-center mb-2">
-                                            <View className="bg-[#3B82F6]/20 p-2 rounded-full mr-3">
-                                                <Ionicons name="sparkles" size={20} color="#60A5FA" />
-                                            </View>
-                                            <Text className="text-white font-bold text-base flex-1">Smart Route Generator</Text>
-                                        </View>
-                                        <Text className="text-[#9CA3AF] text-sm leading-5">
-                                            Describe your visit or upload a prescription / token — we'll automatically extract your needs and map your exact navigation route.
-                                        </Text>
-                                    </View>
-
-                                    {/* Text Input */}
-                                    <Text className="text-txt font-bold mb-2">Describe your needs</Text>
-                                    <TextInput
-                                        className="bg-surface border border-cardBorder rounded-2xl p-4 text-txt mb-4"
-                                        style={{ minHeight: 100, textAlignVertical: 'top' }}
-                                        placeholder="e.g. Blood test required. OPD consultation. Need pharmacy."
-                                        placeholderTextColor="#6B7280"
-                                        multiline
-                                        value={smartText}
-                                        onChangeText={setSmartText}
-                                    />
-
-                                    {/* Example Chips */}
-                                    <Text className="text-[#6B7280] text-xs mb-2">Try an example:</Text>
-                                    <ScrollView horizontal showsHorizontalScrollIndicator={false} className="mb-5">
-                                        {SMART_EXAMPLES.map((ex, i) => (
-                                            <TouchableOpacity
-                                                key={i}
-                                                onPress={() => { setSmartText(ex); setSmartFile(null); }}
-                                                className="bg-card border border-cardBorder rounded-xl px-3 py-2 mr-2"
-                                                style={{ maxWidth: 200 }}
-                                            >
-                                                <Text className="text-txtMuted text-xs" numberOfLines={2}>{ex}</Text>
-                                            </TouchableOpacity>
-                                        ))}
-                                    </ScrollView>
-
-                                    {/* Divider */}
-                                    <View className="flex-row items-center mb-5">
-                                        <View className="flex-1 h-px bg-cardBorder" />
-                                        <Text className="text-txtMuted mx-3 text-xs">OR</Text>
-                                        <View className="flex-1 h-px bg-cardBorder" />
-                                    </View>
-
-                                    {/* Upload Area */}
-                                    <TouchableOpacity
-                                        onPress={pickSmartDocument}
-                                        className="bg-card border-2 border-dashed border-cardBorder rounded-2xl p-6 items-center mb-5"
-                                    >
-                                        <Ionicons name="cloud-upload-outline" size={36} color={smartFile ? '#F59E0B' : '#6B7280'} />
-                                        <Text className="text-txt font-semibold mt-2">
-                                            {smartFile ? smartFile.name : 'Upload Prescription / Token'}
-                                        </Text>
-                                        <Text className="text-txtMuted text-xs mt-1">PDF, TXT, or Image (max 5MB)</Text>
-                                    </TouchableOpacity>
-
-                                    {/* Generate Button */}
-                                    <TouchableOpacity
-                                        onPress={runSmartAnalysis}
-                                        className="bg-[#F59E0B] rounded-2xl py-4 items-center flex-row justify-center gap-2"
-                                        style={{ shadowColor: '#F59E0B', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.4, shadowRadius: 10, elevation: 6 }}
-                                        activeOpacity={0.85}
-                                    >
-                                        <Ionicons name="sparkles-outline" size={20} color="#000" />
-                                        <Text className="text-black font-bold text-base">Generate My Route</Text>
-                                    </TouchableOpacity>
-
-                                    <View className="flex-row items-center justify-center mt-4">
-                                        <Ionicons name="shield-checkmark-outline" size={12} color="#4B5563" />
-                                        <Text className="text-[#4B5563] text-xs ml-1">Documents are never stored. Analysis is temporary.</Text>
-                                    </View>
-                                </View>
-                            )}
-
-                            {smartMode === 'loading' && (
-                                <View className="items-center py-20">
-                                    <View className="w-20 h-20 rounded-full bg-surface items-center justify-center mb-4 border border-cardBorder">
-                                        <ActivityIndicator size="large" color="#F59E0B" />
-                                    </View>
-                                    <Text className="text-txt font-bold text-lg">Analyzing Document...</Text>
-                                    <Text className="text-txtMuted text-sm mt-1">Extracting intents & building your route</Text>
-                                </View>
-                            )}
-
-                            {smartMode === 'result' && smartResult && (
-                                <View>
-                                    {smartResult.found ? (
-                                        <>
-                                            {/* Intents */}
-                                            {smartResult.intents?.length > 0 && (
-                                                <View className="bg-card rounded-2xl p-4 mb-4 border border-cardBorder">
-                                                    <View className="flex-row items-center mb-2">
-                                                        <Ionicons name="sparkles" size={16} color="#F59E0B" />
-                                                        <Text className="text-[#F59E0B] font-bold text-sm ml-2 uppercase tracking-wider">Detected Needs</Text>
-                                                    </View>
-                                                    <View className="flex-row flex-wrap">
-                                                        {smartResult.intents.map((intent, i) => (
-                                                            <View key={i} className="bg-[#F59E0B]/15 px-3 py-1 rounded-full mr-2 mb-2">
-                                                                <Text className="text-[#FDE68A] text-xs font-semibold capitalize">{typeof intent === 'string' ? intent : intent.intent}</Text>
-                                                            </View>
-                                                        ))}
-                                                    </View>
-                                                </View>
-                                            )}
-
-                                            {/* Visit Order */}
-                                            {smartResult.steps?.length > 0 && (
-                                                <View className="mb-4">
-                                                    <Text className="text-txtMuted text-xs font-semibold uppercase tracking-wider mb-2">Your Visit Order</Text>
-                                                    <View className="flex-row flex-wrap">
-                                                        {smartResult.steps.map((step, i) => (
-                                                            <View key={i} className="flex-row items-center bg-card rounded-full px-3 py-1.5 mr-2 mb-2 border border-cardBorder">
-                                                                <View className="w-1.5 h-1.5 rounded-full bg-[#F59E0B] mr-1.5" />
-                                                                <Text className="text-txt text-xs font-semibold">{step.name}</Text>
-                                                            </View>
-                                                        ))}
-                                                    </View>
-                                                </View>
-                                            )}
-
-                                            {/* Route Summary */}
-                                            <View className="bg-[#F59E0B]/10 border border-[#F59E0B]/30 rounded-3xl p-5 mb-4">
-                                                <View className="flex-row items-center justify-between">
-                                                    <View className="flex-1">
-                                                        <Text className="text-[#F59E0B] text-xs font-bold uppercase tracking-wider mb-1">Auto-Generated Route</Text>
-                                                        <Text className="text-txt text-lg font-bold">{smartResult.route.from?.name} → {smartResult.route.to?.name}</Text>
-                                                        <Text className="text-txtMuted text-xs mt-1">{smartResult.steps?.length} stops</Text>
-                                                    </View>
-                                                    <View className="items-end">
-                                                        <View className="bg-[#F59E0B] px-4 py-2 rounded-full">
-                                                            <Text className="text-black font-bold text-lg">{smartResult.route.totalDistance?.toFixed(0)}m</Text>
-                                                        </View>
-                                                        <Text className="text-txtMuted text-xs mt-1">Total</Text>
-                                                    </View>
-                                                </View>
-                                            </View>
-
-                                            {/* Directions with Navigation Mode */}
-                                            <Text className="text-txtMuted text-xs font-semibold uppercase tracking-wider mb-3">Step-by-Step Directions</Text>
-
-                                            {/* Start Navigation for Smart Assist route */}
-                                            {!navigating ? (
-                                                <TouchableOpacity
-                                                    onPress={() => {
-                                                        setNavigating(true);
-                                                        setCurrentStepIndex(0);
-
-                                                        if (smartResult.route?.directions?.[0]) {
-                                                            VoiceHapticEngine.triggerInstruction(smartResult.route.directions[0]);
-                                                        }
-
-                                                        // Fire insight for first step if available
-                                                        if (smartResult.route?.directions?.[0]?.roomId) {
-                                                            const ins = buildingInsights[smartResult.route.directions[0].roomId];
-                                                            if (ins?.length) { setInsightHistory(p => p.find(h => h.title === ins[0].title) ? p : [ins[0], ...p]); showInsight(ins[0]); }
-                                                        }
-                                                    }}
-                                                    className="mb-4 bg-[#F59E0B] rounded-2xl py-3 flex-row items-center justify-center"
-                                                    style={{ shadowColor: '#F59E0B', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.4, shadowRadius: 8, elevation: 4 }}
-                                                >
-                                                    <Ionicons name="navigate" size={18} color="#000" />
-                                                    <Text className="text-black font-bold text-base ml-2">▶ Start Navigation</Text>
-                                                </TouchableOpacity>
-                                            ) : (
-                                                <View className="flex-row mb-4" style={{ gap: 10 }}>
-                                                    <TouchableOpacity onPress={stopNavigating} className="flex-1 bg-surface border border-cardBorder rounded-2xl py-3 items-center">
-                                                        <Text className="text-txtMuted font-bold text-sm">✕ Stop</Text>
-                                                    </TouchableOpacity>
-                                                    <TouchableOpacity
-                                                        onPress={() => {
-                                                            const dirs = smartResult.route?.directions || [];
-                                                            const nextIdx = currentStepIndex + 1;
-                                                            if (nextIdx >= dirs.length) { setNavigating(false); return; }
-                                                            setCurrentStepIndex(nextIdx);
-
-                                                            if (smartScrollViewRef.current) {
-                                                                const scrollTarget = Math.max(0, nextIdx * 100 - 50);
-                                                                smartScrollViewRef.current.scrollTo({ y: scrollTarget, animated: true });
-                                                            }
-
-                                                            if (dirs[nextIdx]) {
-                                                                VoiceHapticEngine.triggerInstruction(dirs[nextIdx]);
-                                                            }
-
-                                                            if (dirs[nextIdx]?.roomId) {
-                                                                const ins = buildingInsights[dirs[nextIdx].roomId];
-                                                                if (ins?.length) { setInsightHistory(p => p.find(h => h.title === ins[0].title) ? p : [ins[0], ...p]); showInsight(ins[0]); }
-                                                            }
-                                                        }}
-                                                        className="flex-[2] bg-[#F59E0B] rounded-2xl py-3 items-center"
-                                                        style={{ shadowColor: '#F59E0B', shadowOpacity: 0.4, shadowRadius: 8, elevation: 4 }}
-                                                    >
-                                                        <Text className="text-black font-bold text-base">
-                                                            {currentStepIndex >= (smartResult.route?.directions?.length ?? 0) - 1 ? '✓ Arrived!' : 'Next Step →'}
-                                                        </Text>
-                                                    </TouchableOpacity>
-                                                </View>
-                                            )}
-
-                                            {/* Smart Direction steps or Visual Path */}
-                                            {!navigating ? (
-                                                smartResult.route.directions.map((step, i) => (
-                                                    <View key={i} style={{ opacity: 1 }}>
-                                                        <SmartDirectionStep step={step} isLast={i === smartResult.route.directions.length - 1} />
-                                                    </View>
-                                                ))
-                                            ) : (
-                                                <View className="flex-1 py-4">
-                                                    <ZeroReadOverlayUI
-                                                        currentStep={smartResult.route.directions[currentStepIndex] || smartResult.route.directions[0]}
-                                                        totalSteps={smartResult.route.directions.length}
-                                                        currentIndex={currentStepIndex === -1 ? 0 : currentStepIndex}
-                                                    />
-                                                </View>
-                                            )}
-
-                                            <View className="bg-[#10B981]/15 border border-[#10B981]/40 rounded-2xl p-4 mb-4 flex-row items-center justify-center">
-                                                <Ionicons name="checkmark-circle" size={22} color="#10B981" />
-                                                <Text className="text-[#10B981] font-bold text-base ml-2">Route Ready!</Text>
-                                            </View>
-
-                                            {/* Reset Button to generate another route */}
-                                            <TouchableOpacity
-                                                onPress={resetSmart}
-                                                className="mb-8 border border-[#374151] bg-[#1A2035] rounded-2xl py-3 flex-row items-center justify-center"
-                                            >
-                                                <Ionicons name="refresh-outline" size={18} color="#9CA3AF" />
-                                                <Text className="text-[#9CA3AF] font-bold text-base ml-2">Generate Another Route</Text>
-                                            </TouchableOpacity>
-                                        </>
-                                    ) : (
-                                        <View className="items-center py-10">
-                                            <View className="w-16 h-16 rounded-full bg-surface items-center justify-center mb-4 border border-cardBorder">
-                                                <Ionicons name="warning-outline" size={32} color="#F59E0B" />
-                                            </View>
-                                            <Text className="text-txt text-xl font-bold text-center">Could Not Generate Route</Text>
-                                            <Text className="text-txtMuted text-sm mt-2 text-center px-6 leading-5">{smartResult.message}</Text>
-                                            <TouchableOpacity onPress={resetSmart} className="mt-8 bg-surface border border-cardBorder px-8 py-3 rounded-2xl">
-                                                <Text className="text-txt font-bold">Try Again</Text>
-                                            </TouchableOpacity>
-                                        </View>
-                                    )}
-                                </View>
-                            )}
-                        </ScrollView>
-                    )}
-
-                    {/* Smart Assist Tab - History Integration */}
-                    {activeTab === 'smart' && insightHistory.length > 0 && (
-                        <View className="px-5 pb-6">
-                            <View className="flex-row items-center mb-3 mt-4">
-                                <Ionicons name="time-outline" size={18} color="#9CA3AF" />
-                                <Text className="text-[#9CA3AF] text-sm font-bold ml-2 uppercase tracking-tight">Recent Discovery Log</Text>
-                            </View>
-                            {insightHistory.map((item, idx) => (
-                                <View key={idx} className="bg-[#1A2035] rounded-2xl p-4 mb-3 border-l-4 border-[#00D4AA]">
-                                    <Text className="text-white font-bold text-sm">{item.title}</Text>
-                                    <Text className="text-[#9CA3AF] text-xs mt-1">{item.description}</Text>
-                                </View>
+                        <View>
+                            <Text className="text-txtMuted text-sm mb-3">
+                                {searchResults.length} result{searchResults.length !== 1 ? 's' : ''} found
+                            </Text>
+                            {searchResults.map((room) => (
+                                <RoomCard key={room.id} room={room} onPress={selectRoom}
+                                    isSelected={startRoom?.id === room.id || endRoom?.id === room.id} />
+                            ))}
+                        </View>
+                    ) : searchMode ? (
+                        <View className="items-center justify-center py-12">
+                            <Ionicons name="search-outline" size={48} color="#6B7280" />
+                            <Text className="text-txtMuted mt-4">No results found</Text>
+                        </View>
+                    ) : (
+                        <View>
+                            <Text className="text-txtMuted text-sm mb-3">
+                                {rooms.length} room{rooms.length !== 1 ? 's' : ''} on this floor
+                            </Text>
+                            {rooms.map((room) => (
+                                <RoomCard key={room.id} room={room} onPress={selectRoom}
+                                    isSelected={startRoom?.id === room.id || endRoom?.id === room.id} />
                             ))}
                         </View>
                     )}
+                </ScrollView>
+            )}
 
-                    {/* Context Notification Overlay — absolute floating card */}
-                    {activeTab === 'navigation' && activeInsight && (
-                        <Animated.View
-                            style={[
-                                {
-                                    position: 'absolute',
-                                    bottom: 24,
-                                    left: 20,
-                                    right: 20,
-                                    zIndex: 999,
-                                    opacity: notifAnim,
-                                    transform: [{
-                                        translateY: notifAnim.interpolate({ inputRange: [0, 1], outputRange: [40, 0] })
-                                    }]
-                                }
-                            ]}
-                        >
-                            <View style={{
-                                backgroundColor: activeInsight.type === 'impact' ? '#00D4AA' : activeInsight.type === 'alert' ? '#EF4444' : '#F59E0B',
-                                borderRadius: 24,
-                                padding: 16,
-                                flexDirection: 'row',
-                                alignItems: 'center',
-                                shadowColor: '#000',
-                                shadowOffset: { width: 0, height: 12 },
-                                shadowOpacity: 0.5,
-                                shadowRadius: 20,
-                                elevation: 15,
-                                borderWidth: 1,
-                                borderColor: 'rgba(255,255,255,0.1)'
-                            }}>
-                                <View style={{ width: 44, height: 44, borderRadius: 12, backgroundColor: 'rgba(255,255,255,0.2)', alignItems: 'center', justifyContent: 'center', marginRight: 12 }}>
-                                    <Ionicons
-                                        name={activeInsight.type === 'impact' ? 'rocket' : activeInsight.type === 'alert' ? 'warning' : 'information-circle'}
-                                        size={24} color="white"
-                                    />
+            {/* ── SMART ASSIST TAB (NEW) ── */}
+            {activeTab === 'smart' && (
+                <ScrollView ref={smartScrollViewRef} className="flex-1 px-5 py-4" showsVerticalScrollIndicator={false}>
+
+                    {/* Incident List — removed to avoid duplication with global dropdown */}
+
+                    {smartMode === 'input' && (
+                        <View>
+                            {/* Improved Info Banner */}
+                            <View className="bg-[#1D2B44] border-l-4 border-[#3B82F6] rounded-xl p-5 mb-6" style={{ shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.1, shadowRadius: 8, elevation: 3 }}>
+                                <View className="flex-row items-center mb-2">
+                                    <View className="bg-[#3B82F6]/20 p-2 rounded-full mr-3">
+                                        <Ionicons name="sparkles" size={20} color="#60A5FA" />
+                                    </View>
+                                    <Text className="text-white font-bold text-base flex-1">Smart Route Generator</Text>
                                 </View>
-                                <View style={{ flex: 1 }}>
-                                    <Text style={{ color: '#0A0F1E', fontWeight: '900', fontSize: 16, lineHeight: 20 }}>{activeInsight.title}</Text>
-                                    <Text style={{ color: 'rgba(10,15,30,0.8)', fontSize: 13, marginTop: 2, fontWeight: '600' }}>{activeInsight.description}</Text>
-                                </View>
-                                <TouchableOpacity onPress={() => { setActiveInsight(null); }} style={{ padding: 4 }}>
-                                    <Ionicons name="close-circle" size={24} color="rgba(10,15,30,0.5)" />
-                                </TouchableOpacity>
+                                <Text className="text-[#9CA3AF] text-sm leading-5">
+                                    Describe your visit or upload a prescription / token — we'll automatically extract your needs and map your exact navigation route.
+                                </Text>
                             </View>
-                        </Animated.View>
+
+                            {/* Text Input */}
+                            <Text className="text-txt font-bold mb-2">Describe your needs</Text>
+                            <TextInput
+                                className="bg-surface border border-cardBorder rounded-2xl p-4 text-txt mb-4"
+                                style={{ minHeight: 100, textAlignVertical: 'top' }}
+                                placeholder="e.g. Blood test required. OPD consultation. Need pharmacy."
+                                placeholderTextColor="#6B7280"
+                                multiline
+                                value={smartText}
+                                onChangeText={setSmartText}
+                            />
+
+                            {/* Example Chips */}
+                            <Text className="text-[#6B7280] text-xs mb-2">Try an example:</Text>
+                            <ScrollView horizontal showsHorizontalScrollIndicator={false} className="mb-5">
+                                {SMART_EXAMPLES.map((ex, i) => (
+                                    <TouchableOpacity
+                                        key={i}
+                                        onPress={() => { setSmartText(ex); setSmartFile(null); }}
+                                        className="bg-card border border-cardBorder rounded-xl px-3 py-2 mr-2"
+                                        style={{ maxWidth: 200 }}
+                                    >
+                                        <Text className="text-txtMuted text-xs" numberOfLines={2}>{ex}</Text>
+                                    </TouchableOpacity>
+                                ))}
+                            </ScrollView>
+
+                            {/* Divider */}
+                            <View className="flex-row items-center mb-5">
+                                <View className="flex-1 h-px bg-cardBorder" />
+                                <Text className="text-txtMuted mx-3 text-xs">OR</Text>
+                                <View className="flex-1 h-px bg-cardBorder" />
+                            </View>
+
+                            {/* Upload Area */}
+                            <TouchableOpacity
+                                onPress={pickSmartDocument}
+                                className="bg-card border-2 border-dashed border-cardBorder rounded-2xl p-6 items-center mb-5"
+                            >
+                                <Ionicons name="cloud-upload-outline" size={36} color={smartFile ? '#F59E0B' : '#6B7280'} />
+                                <Text className="text-txt font-semibold mt-2">
+                                    {smartFile ? smartFile.name : 'Upload Prescription / Token'}
+                                </Text>
+                                <Text className="text-txtMuted text-xs mt-1">PDF, TXT, or Image (max 5MB)</Text>
+                            </TouchableOpacity>
+
+                            {/* Generate Button */}
+                            <TouchableOpacity
+                                onPress={runSmartAnalysis}
+                                className="bg-[#F59E0B] rounded-2xl py-4 items-center flex-row justify-center gap-2"
+                                style={{ shadowColor: '#F59E0B', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.4, shadowRadius: 10, elevation: 6 }}
+                                activeOpacity={0.85}
+                            >
+                                <Ionicons name="sparkles-outline" size={20} color="#000" />
+                                <Text className="text-black font-bold text-base">Generate My Route</Text>
+                            </TouchableOpacity>
+
+                            <View className="flex-row items-center justify-center mt-4">
+                                <Ionicons name="shield-checkmark-outline" size={12} color="#4B5563" />
+                                <Text className="text-[#4B5563] text-xs ml-1">Documents are never stored. Analysis is temporary.</Text>
+                            </View>
+                        </View>
                     )}
-                </SafeAreaView>
-            );
+
+                    {smartMode === 'loading' && (
+                        <View className="items-center py-20">
+                            <View className="w-20 h-20 rounded-full bg-surface items-center justify-center mb-4 border border-cardBorder">
+                                <ActivityIndicator size="large" color="#F59E0B" />
+                            </View>
+                            <Text className="text-txt font-bold text-lg">Analyzing Document...</Text>
+                            <Text className="text-txtMuted text-sm mt-1">Extracting intents & building your route</Text>
+                        </View>
+                    )}
+
+                    {smartMode === 'result' && smartResult && (
+                        <View>
+                            {smartResult.found ? (
+                                <>
+                                    {/* Intents */}
+                                    {smartResult.intents?.length > 0 && (
+                                        <View className="bg-card rounded-2xl p-4 mb-4 border border-cardBorder">
+                                            <View className="flex-row items-center mb-2">
+                                                <Ionicons name="sparkles" size={16} color="#F59E0B" />
+                                                <Text className="text-[#F59E0B] font-bold text-sm ml-2 uppercase tracking-wider">Detected Needs</Text>
+                                            </View>
+                                            <View className="flex-row flex-wrap">
+                                                {smartResult.intents.map((intent, i) => (
+                                                    <View key={i} className="bg-[#F59E0B]/15 px-3 py-1 rounded-full mr-2 mb-2">
+                                                        <Text className="text-[#FDE68A] text-xs font-semibold capitalize">{typeof intent === 'string' ? intent : intent.intent}</Text>
+                                                    </View>
+                                                ))}
+                                            </View>
+                                        </View>
+                                    )}
+
+                                    {/* Visit Order */}
+                                    {smartResult.steps?.length > 0 && (
+                                        <View className="mb-4">
+                                            <Text className="text-txtMuted text-xs font-semibold uppercase tracking-wider mb-2">Your Visit Order</Text>
+                                            <View className="flex-row flex-wrap">
+                                                {smartResult.steps.map((step, i) => (
+                                                    <View key={i} className="flex-row items-center bg-card rounded-full px-3 py-1.5 mr-2 mb-2 border border-cardBorder">
+                                                        <View className="w-1.5 h-1.5 rounded-full bg-[#F59E0B] mr-1.5" />
+                                                        <Text className="text-txt text-xs font-semibold">{step.name}</Text>
+                                                    </View>
+                                                ))}
+                                            </View>
+                                        </View>
+                                    )}
+
+                                    {/* Route Summary */}
+                                    <View className="bg-[#F59E0B]/10 border border-[#F59E0B]/30 rounded-3xl p-5 mb-4">
+                                        <View className="flex-row items-center justify-between">
+                                            <View className="flex-1">
+                                                <Text className="text-[#F59E0B] text-xs font-bold uppercase tracking-wider mb-1">Auto-Generated Route</Text>
+                                                <Text className="text-txt text-lg font-bold">{smartResult.route.from?.name} → {smartResult.route.to?.name}</Text>
+                                                <Text className="text-txtMuted text-xs mt-1">{smartResult.steps?.length} stops</Text>
+                                            </View>
+                                            <View className="items-end">
+                                                <View className="bg-[#F59E0B] px-4 py-2 rounded-full">
+                                                    <Text className="text-black font-bold text-lg">{smartResult.route.totalDistance?.toFixed(0)}m</Text>
+                                                </View>
+                                                <Text className="text-txtMuted text-xs mt-1">Total</Text>
+                                            </View>
+                                        </View>
+                                    </View>
+
+                                    {/* Directions with Navigation Mode */}
+                                    <Text className="text-txtMuted text-xs font-semibold uppercase tracking-wider mb-3">Step-by-Step Directions</Text>
+
+                                    {/* Start Navigation for Smart Assist route */}
+                                    {!navigating ? (
+                                        <TouchableOpacity
+                                            onPress={() => {
+                                                setNavigating(true);
+                                                setCurrentStepIndex(0);
+
+                                                if (smartResult.route?.directions?.[0]) {
+                                                    VoiceHapticEngine.triggerInstruction(smartResult.route.directions[0], i18n.language);
+                                                }
+
+                                                // Fire insight for first step if available
+                                                if (smartResult.route?.directions?.[0]?.roomId) {
+                                                    const ins = buildingInsights[smartResult.route.directions[0].roomId];
+                                                    if (ins?.length) { setInsightHistory(p => p.find(h => h.title === ins[0].title) ? p : [ins[0], ...p]); showInsight(ins[0]); }
+                                                }
+                                            }}
+                                            className="mb-4 bg-[#F59E0B] rounded-2xl py-3 flex-row items-center justify-center"
+                                            style={{ shadowColor: '#F59E0B', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.4, shadowRadius: 8, elevation: 4 }}
+                                        >
+                                            <Ionicons name="navigate" size={18} color="#000" />
+                                            <Text className="text-black font-bold text-base ml-2">▶ Start Navigation</Text>
+                                        </TouchableOpacity>
+                                    ) : (
+                                        <View className="flex-row mb-4" style={{ gap: 10 }}>
+                                            <TouchableOpacity onPress={stopNavigating} className="flex-1 bg-surface border border-cardBorder rounded-2xl py-3 items-center">
+                                                <Text className="text-txtMuted font-bold text-sm">✕ Stop</Text>
+                                            </TouchableOpacity>
+                                            <TouchableOpacity
+                                                onPress={() => {
+                                                    const dirs = smartResult.route?.directions || [];
+                                                    const nextIdx = currentStepIndex + 1;
+                                                    if (nextIdx >= dirs.length) { setNavigating(false); return; }
+                                                    setCurrentStepIndex(nextIdx);
+
+                                                    if (smartScrollViewRef.current) {
+                                                        const scrollTarget = Math.max(0, nextIdx * 100 - 50);
+                                                        smartScrollViewRef.current.scrollTo({ y: scrollTarget, animated: true });
+                                                    }
+
+                                                    if (dirs[nextIdx]) {
+                                                        VoiceHapticEngine.triggerInstruction(dirs[nextIdx], i18n.language);
+                                                    }
+
+                                                    if (dirs[nextIdx]?.roomId) {
+                                                        const ins = buildingInsights[dirs[nextIdx].roomId];
+                                                        if (ins?.length) { setInsightHistory(p => p.find(h => h.title === ins[0].title) ? p : [ins[0], ...p]); showInsight(ins[0]); }
+                                                    }
+                                                }}
+                                                className="flex-[2] bg-[#F59E0B] rounded-2xl py-3 items-center"
+                                                style={{ shadowColor: '#F59E0B', shadowOpacity: 0.4, shadowRadius: 8, elevation: 4 }}
+                                            >
+                                                <Text className="text-black font-bold text-base">
+                                                    {currentStepIndex >= (smartResult.route?.directions?.length ?? 0) - 1 ? '✓ Arrived!' : 'Next Step →'}
+                                                </Text>
+                                            </TouchableOpacity>
+                                        </View>
+                                    )}
+
+                                    {/* Smart Direction steps or Visual Path */}
+                                    {!navigating ? (
+                                        smartResult.route.directions.map((step, i) => (
+                                            <View key={i} style={{ opacity: 1 }}>
+                                                <SmartDirectionStep step={step} isLast={i === smartResult.route.directions.length - 1} />
+                                            </View>
+                                        ))
+                                    ) : (
+                                        <View className="flex-1 py-4">
+                                            <ZeroReadOverlayUI
+                                                currentStep={smartResult.route.directions[currentStepIndex] || smartResult.route.directions[0]}
+                                                totalSteps={smartResult.route.directions.length}
+                                                currentIndex={currentStepIndex === -1 ? 0 : currentStepIndex}
+                                            />
+                                        </View>
+                                    )}
+
+                                    <View className="bg-[#10B981]/15 border border-[#10B981]/40 rounded-2xl p-4 mb-4 flex-row items-center justify-center">
+                                        <Ionicons name="checkmark-circle" size={22} color="#10B981" />
+                                        <Text className="text-[#10B981] font-bold text-base ml-2">Route Ready!</Text>
+                                    </View>
+
+                                    {/* Reset Button to generate another route */}
+                                    <TouchableOpacity
+                                        onPress={resetSmart}
+                                        className="mb-8 border border-[#374151] bg-[#1A2035] rounded-2xl py-3 flex-row items-center justify-center"
+                                    >
+                                        <Ionicons name="refresh-outline" size={18} color="#9CA3AF" />
+                                        <Text className="text-[#9CA3AF] font-bold text-base ml-2">Generate Another Route</Text>
+                                    </TouchableOpacity>
+                                </>
+                            ) : (
+                                <View className="items-center py-10">
+                                    <View className="w-16 h-16 rounded-full bg-surface items-center justify-center mb-4 border border-cardBorder">
+                                        <Ionicons name="warning-outline" size={32} color="#F59E0B" />
+                                    </View>
+                                    <Text className="text-txt text-xl font-bold text-center">Could Not Generate Route</Text>
+                                    <Text className="text-txtMuted text-sm mt-2 text-center px-6 leading-5">{smartResult.message}</Text>
+                                    <TouchableOpacity onPress={resetSmart} className="mt-8 bg-surface border border-cardBorder px-8 py-3 rounded-2xl">
+                                        <Text className="text-txt font-bold">Try Again</Text>
+                                    </TouchableOpacity>
+                                </View>
+                            )}
+                        </View>
+                    )}
+                </ScrollView>
+            )}
+
+            {/* Smart Assist Tab - History Integration */}
+            {activeTab === 'smart' && insightHistory.length > 0 && (
+                <View className="px-5 pb-6">
+                    <View className="flex-row items-center mb-3 mt-4">
+                        <Ionicons name="time-outline" size={18} color="#9CA3AF" />
+                        <Text className="text-[#9CA3AF] text-sm font-bold ml-2 uppercase tracking-tight">Recent Discovery Log</Text>
+                    </View>
+                    {insightHistory.map((item, idx) => (
+                        <View key={idx} className="bg-[#1A2035] rounded-2xl p-4 mb-3 border-l-4 border-[#00D4AA]">
+                            <Text className="text-white font-bold text-sm">{item.title}</Text>
+                            <Text className="text-[#9CA3AF] text-xs mt-1">{item.description}</Text>
+                        </View>
+                    ))}
+                </View>
+            )}
+
+            {/* Context Notification Overlay — absolute floating card */}
+            {activeTab === 'navigation' && activeInsight && (
+                <Animated.View
+                    style={[
+                        {
+                            position: 'absolute',
+                            bottom: 24,
+                            left: 20,
+                            right: 20,
+                            zIndex: 999,
+                            opacity: notifAnim,
+                            transform: [{
+                                translateY: notifAnim.interpolate({ inputRange: [0, 1], outputRange: [40, 0] })
+                            }]
+                        }
+                    ]}
+                >
+                    <View style={{
+                        backgroundColor: activeInsight.type === 'impact' ? '#00D4AA' : activeInsight.type === 'alert' ? '#EF4444' : '#F59E0B',
+                        borderRadius: 24,
+                        padding: 16,
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                        shadowColor: '#000',
+                        shadowOffset: { width: 0, height: 12 },
+                        shadowOpacity: 0.5,
+                        shadowRadius: 20,
+                        elevation: 15,
+                        borderWidth: 1,
+                        borderColor: 'rgba(255,255,255,0.1)'
+                    }}>
+                        <View style={{ width: 44, height: 44, borderRadius: 12, backgroundColor: 'rgba(255,255,255,0.2)', alignItems: 'center', justifyContent: 'center', marginRight: 12 }}>
+                            <Ionicons
+                                name={activeInsight.type === 'impact' ? 'rocket' : activeInsight.type === 'alert' ? 'warning' : 'information-circle'}
+                                size={24} color="white"
+                            />
+                        </View>
+                        <View style={{ flex: 1 }}>
+                            <Text style={{ color: '#0A0F1E', fontWeight: '900', fontSize: 16, lineHeight: 20 }}>{activeInsight.title}</Text>
+                            <Text style={{ color: 'rgba(10,15,30,0.8)', fontSize: 13, marginTop: 2, fontWeight: '600' }}>{activeInsight.description}</Text>
+                        </View>
+                        <TouchableOpacity onPress={() => { setActiveInsight(null); }} style={{ padding: 4 }}>
+                            <Ionicons name="close-circle" size={24} color="rgba(10,15,30,0.5)" />
+                        </TouchableOpacity>
+                    </View>
+                </Animated.View>
+            )}
+        </SafeAreaView>
+    );
 }

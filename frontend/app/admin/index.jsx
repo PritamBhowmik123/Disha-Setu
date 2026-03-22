@@ -12,17 +12,17 @@ import { useAuth } from '../../context/AuthContext';
 import { getDashboardStats } from '../../services/adminService';
 
 const STAT_CONFIG = [
-    { key: 'totalFeedback',   label: 'Total Feedback',    icon: 'chatbubbles-outline',    color: '#6366F1', route: '/admin/feedback'    },
-    { key: 'totalProjects',   label: 'Projects',          icon: 'construct-outline',      color: '#00D4AA', route: null                 },
-    { key: 'totalBuildings',  label: 'Buildings',         icon: 'business-outline',       color: '#8B5CF6', route: '/admin/navigation'  },
-    { key: 'totalRooms',      label: 'Nav Nodes',         icon: 'git-network-outline',    color: '#F59E0B', route: '/admin/navigation'  },
+    { key: 'totalFeedback', label: 'Total Feedback', icon: 'chatbubbles-outline', color: '#6366F1', route: '/admin/feedback' },
+    { key: 'totalProjects', label: 'Projects', icon: 'construct-outline', color: '#00D4AA', route: null },
+    { key: 'totalBuildings', label: 'Buildings', icon: 'business-outline', color: '#8B5CF6', route: '/admin/navigation' },
+    { key: 'totalRooms', label: 'Nav Nodes', icon: 'git-network-outline', color: '#F59E0B', route: '/admin/navigation' },
 ];
 
 const STATUS_COLORS = {
-    pending:       { bg: '#F59E0B18', text: '#F59E0B', border: '#F59E0B35' },
-    'under review':{ bg: '#6366F118', text: '#6366F1', border: '#6366F135' },
-    resolved:      { bg: '#10B98118', text: '#10B981', border: '#10B98135' },
-    rejected:      { bg: '#EF444418', text: '#EF4444', border: '#EF444435' },
+    pending: { bg: '#F59E0B18', text: '#F59E0B', border: '#F59E0B35' },
+    'under review': { bg: '#6366F118', text: '#6366F1', border: '#6366F135' },
+    resolved: { bg: '#10B98118', text: '#10B981', border: '#10B98135' },
+    rejected: { bg: '#EF444418', text: '#EF4444', border: '#EF444435' },
 };
 
 function StatCard({ config, value, onPress }) {

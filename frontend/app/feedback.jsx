@@ -13,6 +13,7 @@ import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import * as ImagePicker from 'expo-image-picker';
 import { useColorScheme } from '../hooks/use-color-scheme';
 import { submitFeedback } from '../services/feedbackService';
+import { detectAIImage } from '../utils/aiImageDetector';
 
 const CATEGORIES = [
     { id: 'delay', label: 'Delay', icon: 'time-outline', color: '#F59E0B' },
@@ -36,6 +37,10 @@ export default function FeedbackScreen() {
     const [loading, setLoading] = useState(false);
     const [ticket, setTicket] = useState(null);
 
+    // ── AI validation state ─────────────────────────────────────────────────
+    // null = no photo yet | 'checking' | 'real' | 'ai' | 'uncertain'
+    const [aiValidation, setAiValidation] = useState(null);
+
     const handlePickPhoto = async () => {
         const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
         if (status !== 'granted') {
@@ -45,16 +50,30 @@ export default function FeedbackScreen() {
         const result = await ImagePicker.launchImageLibraryAsync({
             mediaTypes: ImagePicker.MediaTypeOptions.Images,
             quality: 0.7,
+            exif: true, // request EXIF so detector can inspect camera metadata
         });
         if (!result.canceled) {
             const asset = result.assets[0];
             setPhoto({ uri: asset.uri, name: `report_${Date.now()}.jpg`, type: 'image/jpeg' });
+
+            // ── Trigger AI detection immediately after pick ─────────────────
+            setAiValidation('checking');
+            const verdict = await detectAIImage(asset);
+            setAiValidation(verdict === 'uncertain' ? 'real' : verdict); // fail-safe: uncertain → real
         }
     };
 
     const handleSubmit = async () => {
         if (!category) return Alert.alert('Select a category', 'Please choose an issue type first.');
         if (description.trim().length < 10) return Alert.alert('Description too short', 'Please describe the issue in at least 10 characters.');
+
+        // ── Double-check AI validation before API call ──────────────────────
+        if (photo && aiValidation === 'ai') {
+            return Alert.alert(
+                'Image Not Accepted',
+                'This image appears to be AI-generated. Please upload a real photo.'
+            );
+        }
 
         setLoading(true);
         try {
@@ -72,6 +91,9 @@ export default function FeedbackScreen() {
             setLoading(false);
         }
     };
+
+    // Submit is blocked if: loading, no category, desc too short, OR photo is confirmed AI
+    const submitDisabled = loading || !category || description.trim().length < 10 || aiValidation === 'ai';
 
     return (
         <SafeAreaView className="flex-1 bg-main" edges={['top', 'bottom']}>
@@ -106,7 +128,7 @@ export default function FeedbackScreen() {
                     >
                         <Text className="text-main font-bold text-base">Back to Project</Text>
                     </TouchableOpacity>
-                    <TouchableOpacity onPress={() => { setStep(1); setCategory(null); setDescription(''); setPhoto(null); }}>
+                    <TouchableOpacity onPress={() => { setStep(1); setCategory(null); setDescription(''); setPhoto(null); setAiValidation(null); }}>
                         <Text className="text-txtMuted text-sm">Submit another report</Text>
                     </TouchableOpacity>
                 </View>
@@ -155,12 +177,18 @@ export default function FeedbackScreen() {
                     {/* Photo attachment */}
                     <Text className="text-txt font-bold text-base mb-4">Photo (optional)</Text>
                     <TouchableOpacity
-                        className="bg-card border border-dashed border-cardBorder rounded-2xl p-6 items-center mb-8"
+                        className="bg-card border border-dashed border-cardBorder rounded-2xl p-6 items-center mb-2"
                         onPress={handlePickPhoto}
                     >
                         {photo ? (
                             <View className="w-full">
                                 <Image source={{ uri: photo.uri }} className="w-full h-40 rounded-xl" resizeMode="cover" />
+                                <TouchableOpacity
+                                    onPress={() => { setPhoto(null); setAiValidation(null); }}
+                                    className="absolute top-2 right-2 bg-black/50 p-1 rounded-full"
+                                >
+                                    <Ionicons name="close" size={20} color="white" />
+                                </TouchableOpacity>
                                 <Text className="text-[#00D4AA] text-sm text-center mt-3 font-semibold">Tap to change photo</Text>
                             </View>
                         ) : (
@@ -171,12 +199,38 @@ export default function FeedbackScreen() {
                         )}
                     </TouchableOpacity>
 
+                    {/* ── AI Validation Feedback (inline, below photo area) ── */}
+                    {aiValidation === 'checking' && (
+                        <Text className="text-[#F59E0B] text-xs mb-6 text-center italic">
+                            Analyzing image authenticity...
+                        </Text>
+                    )}
+                    {aiValidation === 'real' && (
+                        <Text className="text-[#10B981] text-xs mb-6 text-center font-semibold">
+                            ✔ Real image verified
+                        </Text>
+                    )}
+                    {aiValidation === 'ai' && (
+                        <Text className="text-[#EF4444] text-xs mb-6 text-center font-semibold">
+                            ❌ AI-generated image detected. Please upload a real photo.
+                        </Text>
+                    )}
+                    {/* ─────────────────────────────────────────────────────── */}
+
                     {/* Submit */}
                     <TouchableOpacity
                         className="bg-[#00D4AA] rounded-2xl py-4 items-center"
-                        style={{ shadowColor: '#00D4AA', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.4, shadowRadius: 12, elevation: 8 }}
+                        style={{
+                            shadowColor: '#00D4AA',
+                            shadowOffset: { width: 0, height: 4 },
+                            shadowOpacity: submitDisabled ? 0.2 : 0.4,
+                            shadowRadius: 12,
+                            elevation: 8,
+                            opacity: submitDisabled ? 0.55 : 1,
+                        }}
+                        activeOpacity={0.7}
                         onPress={handleSubmit}
-                        disabled={loading || !category || description.trim().length < 10}
+                        disabled={submitDisabled}
                     >
                         {loading ? <ActivityIndicator color="#000" /> : <Text className="text-main font-bold text-base">Submit Report</Text>}
                     </TouchableOpacity>

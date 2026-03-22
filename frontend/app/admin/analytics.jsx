@@ -13,19 +13,19 @@ import { formatDate } from '../../utils/dateFormatter';
 import { getFeedbackAnalytics } from '../../services/adminService';
 
 const CATEGORY_COLORS = {
-    delay:      '#F59E0B',
-    safety:     '#EF4444',
-    noise:      '#8B5CF6',
-    traffic:    '#F97316',
+    delay: '#F59E0B',
+    safety: '#EF4444',
+    noise: '#8B5CF6',
+    traffic: '#F97316',
     corruption: '#EC4899',
-    other:      '#6B7280',
+    other: '#6B7280',
 };
 
 const STATUS_COLORS = {
-    pending:        '#F59E0B',
+    pending: '#F59E0B',
     'under review': '#6366F1',
-    resolved:       '#10B981',
-    rejected:       '#EF4444',
+    resolved: '#10B981',
+    rejected: '#EF4444',
 };
 
 function SectionCard({ title, icon, iconColor, children }) {
