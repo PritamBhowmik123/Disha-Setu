@@ -31,35 +31,41 @@ export const VoiceHapticEngine = {
         // Clean the instruction string by removing text inside brackets like "(Floor 0)"
         const cleanInstructionStr = instruction.replace(/\s*\(.*?\)\s*/g, '').trim();
 
+        // NotificationFeedbackType values: 'success' | 'warning' | 'error'
+        // ImpactFeedbackStyle values: 'light' | 'medium' | 'heavy' | 'rigid' | 'soft'
+        // Tag each haptic entry so we know which API to call.
+        const N = (style) => ({ fn: 'notification', style }); // notificationAsync
+        const I = (style) => ({ fn: 'impact', style });       // impactAsync
+
         const dictionary = {
-            'LEFT_TURN': { 
+            'LEFT_TURN': {
                 speech: { en: cleanInstructionStr, hi: 'Aage se baaye mudiye' },
-                haptic: [Haptics.ImpactFeedbackStyle.Medium, Haptics.ImpactFeedbackStyle.Medium] // 2 short bumps
+                haptic: [I(Haptics.ImpactFeedbackStyle.Medium), I(Haptics.ImpactFeedbackStyle.Medium)],
             },
             'RIGHT_TURN': {
                 speech: { en: cleanInstructionStr, hi: 'Aage se daaye mudiye' },
-                haptic: [Haptics.ImpactFeedbackStyle.Heavy] // 1 long heavy bump
+                haptic: [I(Haptics.ImpactFeedbackStyle.Heavy)],
             },
             'ELEVATOR': {
                 speech: { en: cleanInstructionStr, hi: 'Lift lijiye' },
-                haptic: [Haptics.ImpactFeedbackStyle.Light, Haptics.ImpactFeedbackStyle.Medium, Haptics.ImpactFeedbackStyle.Light]
+                haptic: [I(Haptics.ImpactFeedbackStyle.Light), I(Haptics.ImpactFeedbackStyle.Medium), I(Haptics.ImpactFeedbackStyle.Light)],
             },
             'STAIRS': {
                 speech: { en: cleanInstructionStr, hi: 'Seedhiyon se jaiye' },
-                haptic: [Haptics.ImpactFeedbackStyle.Medium, Haptics.ImpactFeedbackStyle.Light]
+                haptic: [I(Haptics.ImpactFeedbackStyle.Medium), I(Haptics.ImpactFeedbackStyle.Light)],
             },
             'STRAIGHT': {
                 speech: { en: cleanInstructionStr, hi: `Seedha ${roomName} ki taraf jaiye` },
-                haptic: null
+                haptic: null,
             },
             'START': {
                 speech: { en: cleanInstructionStr, hi: `${roomName} se shuruat karein.` },
-                haptic: [Haptics.NotificationFeedbackType.Success]
+                haptic: [N(Haptics.NotificationFeedbackType.Success)],
             },
             'ARRIVED': {
                 speech: { en: cleanInstructionStr, hi: `Aap ${roomName} pahunch gaye hain` },
-                haptic: [Haptics.NotificationFeedbackType.Success] // Long success pulse
-            }
+                haptic: [N(Haptics.NotificationFeedbackType.Success)],
+            },
         };
 
         const action = dictionary[actionKey];
@@ -70,12 +76,12 @@ export const VoiceHapticEngine = {
 
         // Trigger Haptic Vibration Patterns
         if (action.haptic) {
-            action.haptic.forEach((style, index) => {
+            action.haptic.forEach(({ fn, style }, index) => {
                 setTimeout(() => {
-                    if (typeof style === 'number') {
-                        Haptics.notificationAsync(style);
+                    if (fn === 'notification') {
+                        Haptics.notificationAsync(style).catch(() => {});
                     } else {
-                        Haptics.impactAsync(style);
+                        Haptics.impactAsync(style).catch(() => {});
                     }
                 }, index * 300); // stagger multiple bumps by 300ms
             });
