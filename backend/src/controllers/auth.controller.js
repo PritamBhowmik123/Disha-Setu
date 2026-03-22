@@ -6,6 +6,7 @@ const { query } = require('../config/db');
 const { generateOTP, verifyOTP } = require('../services/otp.service');
 const { signToken } = require('../middleware/auth.middleware');
 const { v4: uuidv4 } = require('uuid');
+const { uploadToCloud } = require('../utils/cloudStorage');
 const { OAuth2Client } = require('google-auth-library');
 
 const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
@@ -203,4 +204,37 @@ const getMe = async (req, res, next) => {
     }
 };
 
-module.exports = { sendOTP, verifyOTPHandler, googleAuth, guestAuth, registerPushToken, getMe };
+// ── PATCH /api/auth/me ────────────────────────────────────────
+const updateMe = async (req, res, next) => {
+    try {
+        const { name } = req.body;
+        if (!name || !name.trim()) return res.status(400).json({ error: 'Name is required' });
+        const result = await query(
+            `UPDATE users SET name = $1, updated_at = NOW() WHERE id = $2
+             RETURNING id, phone, name, avatar_url, civic_level, civic_points, is_guest, role, created_at, updated_at`,
+            [name.trim(), req.user.id]
+        );
+        if (result.rows.length === 0) return res.status(404).json({ error: 'User not found' });
+        res.json(result.rows[0]);
+    } catch (err) {
+        next(err);
+    }
+};
+
+// ── POST /api/auth/avatar ─────────────────────────────────────
+const uploadAvatar = async (req, res, next) => {
+    try {
+        if (!req.file) return res.status(400).json({ error: 'Image file required' });
+        const url = await uploadToCloud(req.file.buffer, 'dishasetu/avatars');
+        const result = await query(
+            `UPDATE users SET avatar_url = $1, updated_at = NOW() WHERE id = $2
+             RETURNING id, phone, name, avatar_url, civic_level, civic_points, is_guest, role, created_at, updated_at`,
+            [url, req.user.id]
+        );
+        res.json(result.rows[0]);
+    } catch (err) {
+        next(err);
+    }
+};
+
+module.exports = { sendOTP, verifyOTPHandler, googleAuth, guestAuth, registerPushToken, getMe, updateMe, uploadAvatar };

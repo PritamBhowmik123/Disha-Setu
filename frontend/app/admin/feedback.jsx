@@ -12,19 +12,19 @@ import { useAuth } from '../../context/AuthContext';
 import { getAllFeedback, updateFeedbackStatus, deleteFeedback } from '../../services/adminService';
 
 const STATUS_META = {
-    'Pending':      { color: '#F59E0B', bg: '#F59E0B18', border: '#F59E0B35', icon: 'time-outline'           },
-    'Under Review': { color: '#6366F1', bg: '#6366F118', border: '#6366F135', icon: 'eye-outline'            },
-    'Resolved':     { color: '#10B981', bg: '#10B98118', border: '#10B98135', icon: 'checkmark-circle-outline'},
-    'Rejected':     { color: '#EF4444', bg: '#EF444418', border: '#EF444435', icon: 'close-circle-outline'   },
+    'Pending': { color: '#F59E0B', bg: '#F59E0B18', border: '#F59E0B35', icon: 'time-outline' },
+    'Under Review': { color: '#6366F1', bg: '#6366F118', border: '#6366F135', icon: 'eye-outline' },
+    'Resolved': { color: '#10B981', bg: '#10B98118', border: '#10B98135', icon: 'checkmark-circle-outline' },
+    'Rejected': { color: '#EF4444', bg: '#EF444418', border: '#EF444435', icon: 'close-circle-outline' },
 };
 
 const CATEGORY_COLORS = {
-    delay:      '#F59E0B',
-    safety:     '#EF4444',
-    noise:      '#8B5CF6',
-    traffic:    '#F97316',
+    delay: '#F59E0B',
+    safety: '#EF4444',
+    noise: '#8B5CF6',
+    traffic: '#F97316',
     corruption: '#EC4899',
-    other:      '#6B7280',
+    other: '#6B7280',
 };
 
 const FILTER_STATUSES = ['All', 'Pending', 'Under Review', 'Resolved'];
@@ -53,10 +53,12 @@ function FeedbackCard({ feedback, onStatusChange, onDelete }) {
             `Delete ticket ${feedback.ticket_id}?`,
             [
                 { text: 'Cancel', style: 'cancel' },
-                { text: 'Delete', style: 'destructive', onPress: async () => {
-                    try { await deleteFeedback(feedback.id); onDelete(); }
-                    catch { Alert.alert('Error', 'Failed to delete'); }
-                }},
+                {
+                    text: 'Delete', style: 'destructive', onPress: async () => {
+                        try { await deleteFeedback(feedback.id); onDelete(); }
+                        catch { Alert.alert('Error', 'Failed to delete'); }
+                    }
+                },
             ]
         );
     };

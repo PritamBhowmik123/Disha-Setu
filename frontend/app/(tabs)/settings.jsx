@@ -103,6 +103,7 @@ export default function SettingsScreen() {
     };
 
     useEffect(() => {
+        if (!user) { setLoading(false); return; }
         fetchMe()
             .then(data => { setProfileData(data); setLoading(false); })
             .catch(() => { setProfileData(user); setLoading(false); });
@@ -166,8 +167,11 @@ export default function SettingsScreen() {
                         <Text className="text-txt text-base font-semibold">{displayName}</Text>
                         <Text className="text-txtMuted text-xs mt-0.5">{displaySub}</Text>
                     </View>
-                    <TouchableOpacity className="px-3 py-1.5 rounded-lg border border-cardBorder bg-surface">
-                        <Text className="text-txtMuted text-xs font-medium">Edit</Text>
+                    <TouchableOpacity
+                        className="px-3 py-1.5 rounded-lg border border-cardBorder bg-surface"
+                        onPress={() => router.push('/profile')}
+                    >
+                        <Text className="text-[#00D4AA] text-xs font-medium">Edit</Text>
                     </TouchableOpacity>
                 </View>
             </View>
