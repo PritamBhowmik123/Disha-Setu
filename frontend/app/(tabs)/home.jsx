@@ -149,20 +149,24 @@ export default function HomeScreen() {
 
     const handleManualSelection = (lat, lng, name) => {
         setManual({ lat, lng, label: name });
-        setLocationFilter(name !== 'Custom Location' ? name : null);
         setShowLocationModal(false);
     };
 
     useEffect(() => {
-        if (mode === 'gps') setLocationFilter(null);
-    }, [mode]);
+        if (label === 'Current Location' || label === 'Custom Location') {
+            setLocationFilter(null);
+        } else {
+            setLocationFilter(label);
+        }
+    }, [label]);
 
     const visibleProjects = useMemo(() => {
         if (!locationFilter) return projects;
         const needle = locationFilter.toLowerCase();
         return projects.filter(p =>
             (p.area && p.area.toLowerCase().includes(needle)) ||
-            (p.district && p.district.toLowerCase().includes(needle))
+            (p.district && p.district.toLowerCase().includes(needle)) ||
+            (p.city && p.city.toLowerCase().includes(needle))
         );
     }, [projects, locationFilter]);
 
@@ -269,7 +273,7 @@ export default function HomeScreen() {
                                 <Text className="text-txtMuted text-sm text-center mt-2 leading-5">
                                     {t('home.turn_on_location_prompt', 'Please turn on the location service in settings to see nearby projects.')}
                                 </Text>
-                                <TouchableOpacity 
+                                <TouchableOpacity
                                     className="mt-6 bg-[#00D4AA] px-6 py-2.5 rounded-xl border border-[#00D4AA]/50"
                                     onPress={() => router.push({ pathname: '/settings', params: { highlight: 'location' } })}
                                 >

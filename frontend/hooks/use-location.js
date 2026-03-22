@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import * as Location from 'expo-location';
+import { Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const LOCATION_STORAGE_KEY = 'user_last_location';
@@ -106,33 +107,71 @@ export function useLocation() {
         return false;
       }
 
-      // Get a quick initial fix
-      const initial = await Location.getCurrentPositionAsync({
-        accuracy: Location.Accuracy.Balanced,
-      });
+      let initial = await Location.getLastKnownPositionAsync({});
+      if (!initial) {
+        initial = await Location.getCurrentPositionAsync({
+          accuracy: Location.Accuracy.Low,
+        });
+      }
       const lat = initial.coords.latitude;
       const lng = initial.coords.longitude;
+
+      let locLabel = 'Current Location';
+      try {
+        let detectedCity = 'Current Location';
+        let regionName = '';
+
+        if (Platform.OS === 'web') {
+          // Fallback to OSM API for web because Expo's reverse geocoding is unsupported
+          const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lng}`);
+          const data = await res.json();
+          if (data && data.address) {
+            const addr = data.address;
+            detectedCity = addr.city || addr.town || addr.village || addr.county || addr.state_district || 'Current Location';
+            regionName = addr.state || '';
+          }
+        } else {
+          const address = await Location.reverseGeocodeAsync({ latitude: lat, longitude: lng });
+          if (address && address.length > 0) {
+            const place = address[0];
+            detectedCity = place.city || place.subregion || place.district || place.region || 'Current Location';
+            regionName = place.region || '';
+          }
+        }
+
+        // Map Belur/Howrah or anything in West Bengal to Kolkata for demo purposes
+        const dLower = detectedCity.toLowerCase();
+        if (dLower === 'belur' || dLower === 'bluer' || dLower === 'howrah' || regionName === 'West Bengal') {
+          detectedCity = 'Kolkata';
+        }
+        locLabel = detectedCity;
+      } catch (err) {
+        console.warn('Reverse geocode failed:', err);
+      }
+
       setCoords({ lat, lng });
       setAccuracy(initial.coords.accuracy);
-      setLabel('Current Location');
+      setLabel(locLabel);
       setMode('gps');
       setLoading(false);
 
       // Persist the GPS-obtained coordinates
       AsyncStorage.setItem(
         LOCATION_STORAGE_KEY,
-        JSON.stringify({ lat, lng, label: 'Current Location', mode: 'gps' })
-      ).catch(() => {});
+        JSON.stringify({ lat, lng, label: locLabel, mode: 'gps' })
+      ).catch(() => { });
 
-      // Watch for subsequent updates
-      const sub = await Location.watchPositionAsync(
-        { accuracy: Location.Accuracy.Balanced, distanceInterval: 20 },
-        (loc) => {
-          setCoords({ lat: loc.coords.latitude, lng: loc.coords.longitude });
-          setAccuracy(loc.coords.accuracy);
-        }
-      );
-      setSubscription(sub);
+      // Watch for subsequent updates, avoid on web due to LocationEventEmitter bug
+      if (Platform.OS !== 'web') {
+        const sub = await Location.watchPositionAsync(
+          { accuracy: Location.Accuracy.Balanced, distanceInterval: 20 },
+          (loc) => {
+            setCoords({ lat: loc.coords.latitude, lng: loc.coords.longitude });
+            setAccuracy(loc.coords.accuracy);
+          }
+        );
+        setSubscription(sub);
+      }
       return true;
     } catch (e) {
       setError('Could not get your location. Please try again.');
@@ -156,7 +195,7 @@ export function useLocation() {
     AsyncStorage.setItem(
       LOCATION_STORAGE_KEY,
       JSON.stringify({ lat, lng, label: lbl, mode: 'manual' })
-    ).catch(() => {});
+    ).catch(() => { });
   }, [subscription]);
 
   return { coords, label, mode, accuracy, loading, error, isLocationEnabled, checkLocationPreference, startGPS, setManual };

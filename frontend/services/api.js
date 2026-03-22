@@ -72,7 +72,13 @@ export const apiFetch = async (path, options = {}) => {
             headers,
         });
 
-        const data = await response.json();
+        const textResponse = await response.text();
+        let data;
+        try {
+            data = textResponse ? JSON.parse(textResponse) : {};
+        } catch (e) {
+            data = { error: textResponse || `Request failed: ${response.status}` };
+        }
 
         if (!response.ok) {
             throw new Error(data.error || `Request failed: ${response.status}`);
@@ -98,7 +104,14 @@ export const apiUpload = async (path, formData) => {
             body: formData,
         });
 
-        const data = await response.json();
+        const textResponse = await response.text();
+        let data;
+        try {
+            data = textResponse ? JSON.parse(textResponse) : {};
+        } catch (e) {
+            data = { error: textResponse || `Upload failed: ${response.status}` };
+        }
+
         if (!response.ok) throw new Error(data.error || `Upload failed: ${response.status}`);
         return data;
     } catch (error) {
