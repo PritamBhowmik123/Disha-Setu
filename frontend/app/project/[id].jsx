@@ -12,7 +12,7 @@ import { useColorScheme } from '../../hooks/use-color-scheme';
 import { useLocation } from '../../hooks/use-location';
 import { haversineKm } from '../../utils/distance';
 import { formatDate } from '../../utils/dateFormatter';
-import { fetchProjectById, fetchProjectUpdates } from '../../services/projectService';
+import { fetchProjectById, fetchProjectUpdates, fetchProjectFeedback } from '../../services/projectService';
 import { fetchBuildings } from '../../services/indoorNavigationService';
 import { CATEGORY_ICONS } from '../../constants/mockData';
 import { subscribeToProject, unsubscribeFromProject, onProjectUpdate } from '../../services/socketService';
@@ -59,6 +59,7 @@ export default function ProjectDetailScreen() {
 
     const [project, setProject] = useState(null);
     const [updates, setUpdates] = useState([]);
+    const [reviews, setReviews] = useState([]);
     const [loading, setLoading] = useState(true);
     const [liveUpdate, setLiveUpdate] = useState(null);
     const [building, setBuilding] = useState(null);
@@ -89,9 +90,14 @@ export default function ProjectDetailScreen() {
     const load = useCallback(async () => {
         try {
             setLoading(true);
-            const [proj, upds] = await Promise.all([fetchProjectById(id), fetchProjectUpdates(id)]);
+            const [proj, upds, revs] = await Promise.all([
+                fetchProjectById(id),
+                fetchProjectUpdates(id),
+                fetchProjectFeedback(id)
+            ]);
             setProject(proj);
             setUpdates(upds);
+            setReviews(revs);
             try {
                 const buildings = await fetchBuildings();
                 const projectBuilding = buildings.find(b => b.project_id === id);
@@ -341,6 +347,46 @@ export default function ProjectDetailScreen() {
                         <Ionicons name="navigate-outline" size={18} color="#FFF" />
                         <Text className="text-white font-semibold text-sm">{t('project.get_directions')}</Text>
                     </TouchableOpacity>
+                </View>
+
+                {/* Public Reviews */}
+                <View className="mx-4 mb-4">
+                    <Text className="text-txt font-bold text-base mb-3">{t('project.public_reviews', 'Public Reviews')}</Text>
+                    {reviews.length > 0 ? (
+                        <View className="bg-card rounded-xl border border-cardBorder overflow-hidden">
+                            {reviews.map((r, i) => {
+                                let st = { bg: '#6B728018', text: '#6B7280', border: '#6B728035' }; // Pending / Default
+                                if (r.status === 'Resolved') st = { bg: '#10B98118', text: '#10B981', border: '#10B98135' };
+                                else if (r.status === 'Under Review') st = { bg: '#F59E0B18', text: '#F59E0B', border: '#F59E0B35' };
+                                
+                                const icon = CATEGORY_ICONS[r.category] || 'report-problem';
+                                return (
+                                    <View key={r.ticket_id} className="p-4" style={{ borderBottomWidth: i < reviews.length - 1 ? 1 : 0, borderBottomColor: isDark ? '#1F2937' : '#E5E7EB' }}>
+                                        <View className="flex-row items-start justify-between mb-2">
+                                            <View className="flex-row items-center gap-2">
+                                                <MaterialIcons name={icon} size={16} color={iconDim} />
+                                                <Text className="text-txt font-semibold text-sm capitalize">{r.category}</Text>
+                                            </View>
+                                            <View className="flex-row items-center gap-1.5 rounded-md px-2 py-0.5 border" style={{ backgroundColor: st.bg, borderColor: st.border }}>
+                                                <View className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: st.text }} />
+                                                <Text style={{ color: st.text }} className="text-[10px] font-bold">{r.status}</Text>
+                                            </View>
+                                        </View>
+                                        <Text className="text-txtMuted text-sm leading-5 mb-2">{r.description}</Text>
+                                        <View className="flex-row items-center justify-between">
+                                            <Text className="text-txtMuted text-[10px]">{formatDate(r.created_at)}</Text>
+                                            {r.user_name && <Text className="text-txtMuted text-[10px] font-medium text-right capitalize">By {r.user_name}</Text>}
+                                        </View>
+                                    </View>
+                                );
+                            })}
+                        </View>
+                    ) : (
+                        <View className="bg-card rounded-xl border border-cardBorder p-6 items-center justify-center">
+                            <Ionicons name="chatbubbles-outline" size={24} color={iconDim} />
+                            <Text className="text-txtMuted text-sm mt-2 text-center">No reviews yet for this project</Text>
+                        </View>
+                    )}
                 </View>
 
                 {/* Actions */}

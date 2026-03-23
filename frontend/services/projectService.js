@@ -31,6 +31,11 @@ export const fetchProjectUpdates = async (id) => {
     return data.updates || [];
 };
 
+export const fetchProjectFeedback = async (id, page = 1, limit = 10) => {
+    const data = await apiFetch(`/projects/${id}/feedback?page=${page}&limit=${limit}`);
+    return data.feedback || [];
+};
+
 export const updateUserLocation = async (lat, lng) => {
     return apiFetch('/projects/location', {
         method: 'POST',

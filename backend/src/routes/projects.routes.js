@@ -3,7 +3,7 @@
  */
 const router = require('express').Router();
 const { getProjects, getNearbyProjects, getProjectById,
-    updateUserLocation } = require('../controllers/projects.controller');
+    updateUserLocation, getProjectFeedback } = require('../controllers/projects.controller');
 const { optionalAuth, requireAuth } = require('../middleware/auth.middleware');
 const updatesRoutes = require('./updates.routes');
 
@@ -12,6 +12,7 @@ router.get('/', optionalAuth, getProjects);
 router.get('/nearby', optionalAuth, getNearbyProjects);
 router.post('/location', requireAuth, updateUserLocation);
 router.get('/:id', optionalAuth, getProjectById);
+router.get('/:id/feedback', optionalAuth, getProjectFeedback);
 
 // Nest updates sub-router: GET/POST /api/projects/:id/updates
 // (mergeParams: true is set in updates.routes.js so it can access :id)

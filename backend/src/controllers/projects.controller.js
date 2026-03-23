@@ -128,4 +128,31 @@ const updateUserLocation = async (req, res, next) => {
     }
 };
 
-module.exports = { getProjects, getNearbyProjects, getProjectById, updateUserLocation };
+// ── GET /api/projects/:id/feedback ──────────────────────────────
+// Returns all public feedback reports for a project
+const getProjectFeedback = async (req, res, next) => {
+    try {
+        const { id } = req.params;
+        const { page = 1, limit = 10 } = req.query;
+        const offset = (parseInt(page) - 1) * parseInt(limit);
+
+        const result = await query(
+            `SELECT
+                fr.ticket_id, fr.category, fr.description, fr.photo_url,
+                fr.status, fr.created_at,
+                u.name AS user_name
+             FROM feedback_reports fr
+             LEFT JOIN users u ON u.id = fr.user_id
+             WHERE fr.project_id = $1 AND fr.status != 'Rejected'
+             ORDER BY fr.created_at DESC
+             LIMIT $2 OFFSET $3`,
+            [id, parseInt(limit), offset]
+        );
+
+        res.json({ feedback: result.rows });
+    } catch (err) {
+        next(err);
+    }
+};
+
+module.exports = { getProjects, getNearbyProjects, getProjectById, updateUserLocation, getProjectFeedback };
