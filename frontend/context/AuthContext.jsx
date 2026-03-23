@@ -4,6 +4,7 @@
  */
 import { createContext, useContext, useState, useEffect } from 'react';
 import { getUser, clearAuth, saveUser } from '../services/authService';
+import { registerForPushNotificationsAsync } from '../services/notificationService';
 
 const AuthContext = createContext(null);
 
@@ -16,6 +17,10 @@ export function AuthProvider({ children }) {
         getUser().then(u => {
             setUser(u);
             setLoading(false);
+            if (u) {
+                // Register for push if already logged in
+                registerForPushNotificationsAsync().catch(console.error);
+            }
         });
     }, []);
 
@@ -23,6 +28,8 @@ export function AuthProvider({ children }) {
         setUser(userData);
         // Persist to AsyncStorage to ensure avatar and other data is saved
         await saveUser(userData);
+        // Register token
+        registerForPushNotificationsAsync().catch(console.error);
     };
 
     const logout = async () => {

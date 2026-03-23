@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "715183475240",
+    "project_id": "dishasetu-70f7b",
+    "storage_bucket": "dishasetu-70f7b.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:715183475240:android:f5a9a9522202c00bd3c31d",
+        "android_client_info": {
+          "package_name": "com.anonymous.dishasetu"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyC1NI5bH-kOR9exS5QDxTNhl2qf1-ELnik"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

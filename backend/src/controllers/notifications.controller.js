@@ -3,6 +3,8 @@
  */
 const { query } = require('../config/db');
 
+const { createNotification } = require('../services/notifications.service');
+
 // ── GET /api/notifications ─────────────────────────────────────
 const getNotifications = async (req, res, next) => {
     try {
@@ -61,4 +63,53 @@ const markRead = async (req, res, next) => {
     }
 };
 
-module.exports = { getNotifications, markRead };
+// ── POST /api/notifications/test ───────────────────────────────
+const testPush = async (req, res, next) => {
+    try {
+        await createNotification({
+            userId: req.user.id,
+            type: 'geo_fence_alert',
+            title: 'Test Push Notification',
+            message: 'Hello! Your push notifications are successfully configured and working.'
+        });
+        res.json({ message: 'Test notification queued successfully.' });
+    } catch (err) {
+        next(err);
+    }
+};
+
+// ── GET /api/notifications/geofence-trigger ────────────────────
+const triggerGeofence = async (req, res, next) => {
+    try {
+        const { runGeofenceCheck } = require('../jobs/geofence.job');
+        await runGeofenceCheck();
+        res.json({ message: 'Geofence scan executed manually.' });
+    } catch (err) {
+        next(err);
+    }
+};
+
+// ── GET /api/notifications/clear-cooldowns ─────────────────────
+const clearCooldowns = async (req, res, next) => {
+    try {
+        const { clearRecentAlerts } = require('../jobs/geofence.job');
+        
+        // Clear in-memory map
+        clearRecentAlerts();
+
+        // Optional: clear DB notifications for this user within 24h to allow re-testing
+        const { query } = require('../config/db');
+        await query(
+            `DELETE FROM notifications 
+             WHERE user_id = $1 AND type = 'geo_fence_alert' 
+             AND created_at > NOW() - INTERVAL '24 hours'`,
+            [req.user.id]
+        );
+
+        res.json({ message: 'Alert cooldowns cleared for your account.' });
+    } catch (err) {
+        next(err);
+    }
+};
+
+module.exports = { getNotifications, markRead, testPush, triggerGeofence, clearCooldowns };

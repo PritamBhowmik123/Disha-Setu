@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, Switch, Image, ActivityIndicator, Animated } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, Switch, Image, ActivityIndicator, Animated, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import Ionicons from '@expo/vector-icons/Ionicons';
@@ -7,6 +7,7 @@ import { useColorScheme } from '../../hooks/use-color-scheme';
 import { useAuth } from '../../context/AuthContext';
 import { logout as authLogout, fetchMe } from '../../services/authService';
 import { disconnectSocket } from '../../services/socketService';
+import { apiFetch } from '../../services/api';
 import { useTranslation } from 'react-i18next';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
@@ -245,6 +246,45 @@ export default function SettingsScreen() {
                                 </View>
                             </View>
                         )}
+                        <SettingRow
+                            icon="paper-plane-outline"
+                            title="Test Push Notification"
+                            subtitle="Send a test ping from the server"
+                            onPress={async () => {
+                                try {
+                                    await apiFetch('/notifications/test', { method: 'POST' });
+                                    Alert.alert('Success', 'Test notification queued on server!');
+                                } catch (e) {
+                                    Alert.alert('Error', e.message || 'Failed to send test notification');
+                                }
+                            }}
+                        />
+                        <SettingRow
+                            icon="scan-outline"
+                            title="Trigger Geofence Scan"
+                            subtitle="Manually run the proximity check job"
+                            onPress={async () => {
+                                try {
+                                    await apiFetch('/notifications/geofence-trigger', { method: 'POST' });
+                                    Alert.alert('Success', 'Geofence scan executed successfully!');
+                                } catch (e) {
+                                    Alert.alert('Error', e.message || 'Failed to trigger geofence scan');
+                                }
+                            }}
+                        />
+                        <SettingRow
+                            icon="refresh-outline"
+                            title="Reset Alert Cooldown"
+                            subtitle="Clear 1h/24h blocks for all project sites"
+                            onPress={async () => {
+                                try {
+                                    await apiFetch('/notifications/clear-cooldowns', { method: 'POST' });
+                                    Alert.alert('Success', 'Alert cooldowns cleared. You can now re-test areas!');
+                                } catch (e) {
+                                    Alert.alert('Error', e.message || 'Failed to clear cooldowns');
+                                }
+                            }}
+                        />
                     </View>
 
                     {/* Admin */}

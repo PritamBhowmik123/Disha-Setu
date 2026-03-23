@@ -11,6 +11,7 @@ import { useColorScheme } from '../hooks/use-color-scheme';
 import { AuthProvider } from '../context/AuthContext';
 import { useAuth } from '../context/AuthContext';
 import { connectSocket, disconnectSocket } from '../services/socketService';
+import Constants from 'expo-constants';
 import '../global.css';
 import '../i18n';
 
@@ -42,6 +43,19 @@ function AppShell() {
 
     return () => clearTimeout(timer);
   }, [user]); // re-run when user logs in/out
+
+  useEffect(() => {
+    // Top-level listener to handle incoming notifications (skip in Expo Go)
+    if (Platform.OS !== 'web' && Constants.appOwnership !== 'expo') {
+        try {
+            const Notifications = require('expo-notifications');
+            const listener = Notifications.addNotificationReceivedListener(notification => {
+                console.log('[Layout] Notification received in foreground:', notification);
+            });
+            return () => listener.remove();
+        } catch (e) {}
+    }
+  }, []);
 
   return (
     <View style={{ flex: 1 }} className={isDark ? 'dark' : ''}>

@@ -85,4 +85,9 @@ const startGeofenceJob = () => {
     console.log(`[Geofence] Job started — runs every ${interval} minutes`);
 };
 
-module.exports = { startGeofenceJob, runGeofenceCheck };
+const clearRecentAlerts = () => {
+    recentAlerts.clear();
+    console.log('[Geofence] In-memory alert cooldowns cleared.');
+};
+
+module.exports = { startGeofenceJob, runGeofenceCheck, clearRecentAlerts };
