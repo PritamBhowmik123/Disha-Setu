@@ -15,7 +15,7 @@ import { formatDate } from '../../utils/dateFormatter';
 
 import { fetchProjectById, fetchProjectUpdates, fetchProjectFeedback } from '../../services/projectService';
 
-import { fetchProjectById, fetchProjectUpdates, fetchNewsImpact } from '../../services/projectService';
+import { fetchNewsImpact } from '../../services/projectService';
 
 import { fetchBuildings } from '../../services/indoorNavigationService';
 import { CATEGORY_ICONS } from '../../constants/mockData';
