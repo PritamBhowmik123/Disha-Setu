@@ -11,6 +11,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import * as ImagePicker from 'expo-image-picker';
+import InlineCropEditor from '../components/InlineCropEditor';
 import { useColorScheme } from '../hooks/use-color-scheme';
 import { submitFeedback } from '../services/feedbackService';
 import { detectAIImage } from '../utils/aiImageDetector';
@@ -37,6 +38,12 @@ export default function FeedbackScreen() {
     const [loading, setLoading] = useState(false);
     const [ticket, setTicket] = useState(null);
 
+    // ── Crop & Adjust state ──────────────────────────────────────────────────
+    // pendingPhoto: raw asset from picker — when set, shows inline crop editor
+    const [pendingPhoto, setPendingPhoto] = useState(null);
+    // photoAspect: aspect ratio (w/h) of the confirmed/cropped photo
+    const [photoAspect, setPhotoAspect] = useState(null);
+
     // ── AI validation state ─────────────────────────────────────────────────
     // null = no photo yet | 'checking' | 'real' | 'ai' | 'uncertain'
     const [aiValidation, setAiValidation] = useState(null);
@@ -49,18 +56,34 @@ export default function FeedbackScreen() {
         }
         const result = await ImagePicker.launchImageLibraryAsync({
             mediaTypes: ImagePicker.MediaTypeOptions.Images,
-            quality: 0.7,
-            exif: true, // request EXIF so detector can inspect camera metadata
+            quality: 0.9,  // full quality — manipulator compresses on confirm
+            exif: true,    // for AI detector
         });
         if (!result.canceled) {
-            const asset = result.assets[0];
-            setPhoto({ uri: asset.uri, name: `report_${Date.now()}.jpg`, type: 'image/jpeg' });
-
-            // ── Trigger AI detection immediately after pick ─────────────────
-            setAiValidation('checking');
-            const verdict = await detectAIImage(asset);
-            setAiValidation(verdict === 'uncertain' ? 'real' : verdict); // fail-safe: uncertain → real
+            // Clear any confirmed photo and show the inline crop editor
+            setPhoto(null);
+            setPhotoAspect(null);
+            setAiValidation(null);
+            setPendingPhoto(result.assets[0]);
         }
+    };
+
+    /** Called by InlineCropEditor when user taps Done */
+    const handleEditConfirm = async ({ uri: processedUri, width: pw, height: ph }) => {
+        const asset = pendingPhoto;
+        setPendingPhoto(null);
+        setPhoto({ uri: processedUri, name: `report_${Date.now()}.jpg`, type: 'image/jpeg' });
+        setPhotoAspect(pw > 0 && ph > 0 ? pw / ph : null);
+
+        // Trigger AI detection on the processed image
+        setAiValidation('checking');
+        const verdict = await detectAIImage({ ...asset, uri: processedUri });
+        setAiValidation(verdict === 'uncertain' ? 'real' : verdict);
+    };
+
+    /** Called by InlineCropEditor when user taps Cancel */
+    const handleEditCancel = () => {
+        setPendingPhoto(null);
     };
 
     const handleSubmit = async () => {
@@ -128,12 +151,16 @@ export default function FeedbackScreen() {
                     >
                         <Text className="text-main font-bold text-base">Back to Project</Text>
                     </TouchableOpacity>
-                    <TouchableOpacity onPress={() => { setStep(1); setCategory(null); setDescription(''); setPhoto(null); setAiValidation(null); }}>
+                    <TouchableOpacity onPress={() => { setStep(1); setCategory(null); setDescription(''); setPhoto(null); setPhotoAspect(null); setAiValidation(null); }}>
                         <Text className="text-txtMuted text-sm">Submit another report</Text>
                     </TouchableOpacity>
                 </View>
             ) : (
-                <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ padding: 20, paddingBottom: 100 }} keyboardShouldPersistTaps="handled">
+                <ScrollView
+                    showsVerticalScrollIndicator={false}
+                    contentContainerStyle={{ padding: 20, paddingBottom: 100 }}
+                    keyboardShouldPersistTaps="handled"
+                >
                     {projectName && (
                         <View className="bg-card rounded-2xl p-4 border border-cardBorder mb-6">
                             <Text className="text-txtMuted text-xs mb-1">Reporting for</Text>
@@ -176,28 +203,49 @@ export default function FeedbackScreen() {
 
                     {/* Photo attachment */}
                     <Text className="text-txt font-bold text-base mb-4">Photo (optional)</Text>
-                    <TouchableOpacity
-                        className="bg-card border border-dashed border-cardBorder rounded-2xl p-6 items-center mb-2"
-                        onPress={handlePickPhoto}
-                    >
-                        {photo ? (
-                            <View className="w-full">
-                                <Image source={{ uri: photo.uri }} className="w-full h-40 rounded-xl" resizeMode="cover" />
-                                <TouchableOpacity
-                                    onPress={() => { setPhoto(null); setAiValidation(null); }}
-                                    className="absolute top-2 right-2 bg-black/50 p-1 rounded-full"
-                                >
-                                    <Ionicons name="close" size={20} color="white" />
-                                </TouchableOpacity>
-                                <Text className="text-[#00D4AA] text-sm text-center mt-3 font-semibold">Tap to change photo</Text>
-                            </View>
-                        ) : (
-                            <>
-                                <Ionicons name="camera-outline" size={32} color={iconDim} />
-                                <Text className="text-txtMuted text-sm mt-3">Tap to attach a photo</Text>
-                            </>
-                        )}
-                    </TouchableOpacity>
+
+                    {pendingPhoto ? (
+                        /* ── Inline crop editor — appears in place of the picker ── */
+                        <InlineCropEditor
+                            uri={pendingPhoto.uri}
+                            origWidth={pendingPhoto.width  || 1000}
+                            origHeight={pendingPhoto.height || 1000}
+                            onConfirm={handleEditConfirm}
+                            onCancel={handleEditCancel}
+                        />
+                    ) : (
+                        <TouchableOpacity
+                            className="bg-card border border-dashed border-cardBorder rounded-2xl p-6 items-center mb-2"
+                            onPress={handlePickPhoto}
+                        >
+                            {photo ? (
+                                <View className="w-full">
+                                    {/* Full natural-ratio image — entire cropped photo visible */}
+                                    <Image
+                                        source={{ uri: photo.uri }}
+                                        style={{
+                                            width: '100%',
+                                            aspectRatio: photoAspect ?? 4 / 3,
+                                            borderRadius: 12,
+                                        }}
+                                        resizeMode="contain"
+                                    />
+                                    <TouchableOpacity
+                                        onPress={() => { setPhoto(null); setPhotoAspect(null); setAiValidation(null); }}
+                                        className="absolute top-2 right-2 bg-black/50 p-1 rounded-full"
+                                    >
+                                        <Ionicons name="close" size={20} color="white" />
+                                    </TouchableOpacity>
+                                    <Text className="text-[#00D4AA] text-sm text-center mt-3 font-semibold">Tap to change photo</Text>
+                                </View>
+                            ) : (
+                                <>
+                                    <Ionicons name="camera-outline" size={32} color={iconDim} />
+                                    <Text className="text-txtMuted text-sm mt-3">Tap to attach a photo</Text>
+                                </>
+                            )}
+                        </TouchableOpacity>
+                    )}
 
                     {/* ── AI Validation Feedback (inline, below photo area) ── */}
                     {aiValidation === 'checking' && (
