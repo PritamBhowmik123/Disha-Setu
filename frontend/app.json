@@ -21,7 +21,12 @@
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
       "googleServicesFile": "./google-services.json",
-      "package": "com.anonymous.dishasetu"
+      "package": "com.anonymous.dishasetu",
+      "config": {
+        "googleMaps": {
+          "apiKey": "AIzaSyDd1KBJbRy8ScLoekDqz9asXTmXmvPrbR8"
+        }
+      }
     },
     "web": {
       "output": "static",
