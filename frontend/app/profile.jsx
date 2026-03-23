@@ -107,8 +107,8 @@ export default function ProfileScreen() {
     const [refreshing, setRefreshing] = useState(false);
     const [avatarUploading, setAvatarUploading] = useState(false);
 
-    // Edit modal
-    const [editVisible, setEditVisible] = useState(false);
+    // Edit state
+    const [isEditingName, setIsEditingName] = useState(false);
     const [editName, setEditName] = useState('');
     const [saving, setSaving] = useState(false);
 
@@ -170,8 +170,8 @@ export default function ProfileScreen() {
         }
     };
 
-    // ── Edit Name ─────────────────────────────────────────────────
-    const openEdit = () => { setEditName(profile?.name || ''); setEditVisible(true); };
+    // ── Edit Name (In-place) ──────────────────────────────────────
+    const startEditing = () => { setEditName(profile?.name || ''); setIsEditingName(true); };
 
     const handleSaveName = async () => {
         if (!editName.trim()) return;
@@ -183,7 +183,7 @@ export default function ProfileScreen() {
             });
             setProfile(prev => ({ ...prev, name: updated.name }));
             login({ ...user, name: updated.name });
-            setEditVisible(false);
+            setIsEditingName(false);
         } catch (err) {
             Alert.alert('Error', err.message || 'Failed to update name');
         } finally {
@@ -224,9 +224,7 @@ export default function ProfileScreen() {
                     <Text className="text-txtMuted text-sm font-medium">Back</Text>
                 </TouchableOpacity>
                 <Text className="text-txt text-base font-bold">Profile</Text>
-                <TouchableOpacity onPress={openEdit} className="px-3 py-1.5 rounded-lg border border-[#00D4AA]/40 bg-[#00D4AA]/10">
-                    <Text className="text-[#00D4AA] text-xs font-semibold">Edit</Text>
-                </TouchableOpacity>
+                <View className="w-10" /> 
             </View>
 
             <ScrollView
@@ -263,8 +261,42 @@ export default function ProfileScreen() {
                             </View>
                         </TouchableOpacity>
 
-                        {/* Name */}
-                        <Text className="text-txt text-xl font-bold mt-4">{displayName}</Text>
+                        {/* Name Section with In-place Edit */}
+                        {isEditingName ? (
+                            <View className="flex-row items-center gap-2 mt-4 px-4 w-full justify-center">
+                                <TextInput
+                                    className="flex-1 bg-surface border border-[#00D4AA]/40 rounded-xl px-4 py-2 text-txt text-lg font-bold text-center"
+                                    value={editName}
+                                    onChangeText={setEditName}
+                                    autoFocus
+                                    placeholder="Enter name"
+                                    placeholderTextColor="#6B7280"
+                                />
+                                <TouchableOpacity 
+                                    onPress={handleSaveName} 
+                                    disabled={saving || !editName.trim()}
+                                    className="w-10 h-10 rounded-full bg-[#00D4AA] items-center justify-center shadow-sm"
+                                >
+                                    {saving ? <ActivityIndicator size="small" color="#000" /> : <Ionicons name="checkmark" size={20} color="#000" />}
+                                </TouchableOpacity>
+                                <TouchableOpacity 
+                                    onPress={() => setIsEditingName(false)} 
+                                    className="w-10 h-10 rounded-full bg-surface items-center justify-center border border-cardBorder shadow-sm"
+                                >
+                                    <Ionicons name="close" size={20} color={iconDim} />
+                                </TouchableOpacity>
+                            </View>
+                        ) : (
+                            <View className="flex-row items-center gap-2 mt-4">
+                                <Text className="text-txt text-xl font-bold">{displayName}</Text>
+                                <TouchableOpacity 
+                                    onPress={startEditing}
+                                    className="w-7 h-7 rounded-full bg-surface items-center justify-center border border-cardBorder shadow-sm"
+                                >
+                                    <Ionicons name="pencil" size={14} color="#00D4AA" />
+                                </TouchableOpacity>
+                            </View>
+                        )}
 
                         {/* Phone */}
                         {displayPhone && (
@@ -448,61 +480,7 @@ export default function ProfileScreen() {
                 )}
             </ScrollView>
 
-            {/* Edit Name Modal */}
-            <Modal visible={editVisible} transparent animationType="slide" onRequestClose={() => setEditVisible(false)}>
-                <View className="flex-1 bg-black/50 justify-end">
-                    <View className="bg-card rounded-t-3xl px-6 pt-6 pb-10 border-t border-cardBorder">
-                        <View className="flex-row items-center justify-between mb-6">
-                            <Text className="text-txt text-lg font-bold">Edit Profile</Text>
-                            <TouchableOpacity onPress={() => setEditVisible(false)}>
-                                <Ionicons name="close" size={24} color={iconDim} />
-                            </TouchableOpacity>
-                        </View>
-
-                        {/* Avatar shortcut inside modal */}
-                        <TouchableOpacity
-                            className="flex-row items-center gap-3 bg-surface rounded-xl p-3 mb-5 border border-cardBorder"
-                            onPress={() => { setEditVisible(false); setTimeout(handlePickAvatar, 300); }}
-                        >
-                            {avatarUrl
-                                ? <Image source={{ uri: avatarUrl }} className="w-10 h-10 rounded-full" />
-                                : (
-                                    <View className="w-10 h-10 rounded-full bg-[#00D4AA]/10 items-center justify-center">
-                                        <Ionicons name="person-outline" size={18} color="#00D4AA" />
-                                    </View>
-                                )
-                            }
-                            <View className="flex-1">
-                                <Text className="text-txt text-sm font-semibold">Change Profile Photo</Text>
-                                <Text className="text-txtMuted text-xs">Tap to pick from gallery</Text>
-                            </View>
-                            <Ionicons name="camera-outline" size={18} color="#00D4AA" />
-                        </TouchableOpacity>
-
-                        <Text className="text-txtMuted text-sm mb-2 ml-1">Display Name</Text>
-                        <TextInput
-                            className="bg-surface border border-cardBorder rounded-xl px-4 py-3.5 text-txt text-base mb-5"
-                            value={editName}
-                            onChangeText={setEditName}
-                            placeholder="Enter your name"
-                            placeholderTextColor="#6B7280"
-                            autoFocus
-                        />
-
-                        <TouchableOpacity
-                            className="w-full rounded-xl py-4 items-center"
-                            style={{ backgroundColor: editName.trim() ? '#00D4AA' : '#374151' }}
-                            onPress={handleSaveName}
-                            disabled={!editName.trim() || saving}
-                        >
-                            {saving
-                                ? <ActivityIndicator color="#000" />
-                                : <Text className="font-bold text-base" style={{ color: editName.trim() ? '#000' : '#9CA3AF' }}>Save Changes</Text>
-                            }
-                        </TouchableOpacity>
-                    </View>
-                </View>
-            </Modal>
+            {/* Edit modal removed - replaced with in-place editing above */}
         </SafeAreaView>
     );
 }

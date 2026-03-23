@@ -95,7 +95,7 @@ const getUserFeedback = async (req, res, next) => {
     try {
         const result = await query(
             `SELECT
-                fr.id, fr.ticket_id, fr.category, fr.description,
+                fr.id, fr.ticket_id, fr.project_id, fr.category, fr.description,
                 fr.status, fr.photo_url, fr.created_at, fr.updated_at,
                 p.name AS project_name, p.area AS project_area
              FROM feedback_reports fr

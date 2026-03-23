@@ -82,6 +82,7 @@ export default function SettingsScreen() {
     const [showLangPicker, setShowLangPicker] = useState(false);
     const [locationEnabled, setLocationEnabled] = useState(true);
     const [highlightLocation, setHighlightLocation] = useState(false);
+    const [isDevMode, setIsDevMode] = useState(false);
     const iconDim = isDark ? '#9CA3AF' : '#6B7280';
 
     const languages = [
@@ -123,6 +124,10 @@ export default function SettingsScreen() {
         AsyncStorage.getItem('location_permission_enabled').then(val => {
             if (val !== null) setLocationEnabled(val === 'true');
         });
+
+        AsyncStorage.getItem('is_dev_mode').then(val => {
+            if (val !== null) setIsDevMode(val === 'true');
+        });
     }, [user]);
 
     useEffect(() => {
@@ -139,6 +144,15 @@ export default function SettingsScreen() {
             await AsyncStorage.setItem('location_permission_enabled', value.toString());
         } catch (e) {
             console.error('Failed to save location preference', e);
+        }
+    };
+
+    const toggleDevMode = async (value) => {
+        setIsDevMode(value);
+        try {
+            await AsyncStorage.setItem('is_dev_mode', value.toString());
+        } catch (e) {
+            console.error('Failed to save dev mode preference', e);
         }
     };
 
@@ -258,44 +272,62 @@ export default function SettingsScreen() {
                             </View>
                         )}
                         <SettingRow
-                            icon="paper-plane-outline"
-                            title="Test Push Notification"
-                            subtitle="Send a test ping from the server"
-                            onPress={async () => {
-                                try {
-                                    await apiFetch('/notifications/test', { method: 'POST' });
-                                    Alert.alert('Success', 'Test notification queued on server!');
-                                } catch (e) {
-                                    Alert.alert('Error', e.message || 'Failed to send test notification');
-                                }
-                            }}
+                            icon="bug-outline"
+                            title="Developer Mode"
+                            subtitle="Show/hide development tools"
+                            type="switch"
+                            action={
+                                <Switch
+                                    value={isDevMode}
+                                    onValueChange={toggleDevMode}
+                                    trackColor={{ false: '#374151', true: '#00D4AA' }}
+                                    thumbColor="#fff"
+                                />
+                            }
                         />
-                        <SettingRow
-                            icon="scan-outline"
-                            title="Trigger Geofence Scan"
-                            subtitle="Manually run the proximity check job"
-                            onPress={async () => {
-                                try {
-                                    await apiFetch('/notifications/geofence-trigger', { method: 'POST' });
-                                    Alert.alert('Success', 'Geofence scan executed successfully!');
-                                } catch (e) {
-                                    Alert.alert('Error', e.message || 'Failed to trigger geofence scan');
-                                }
-                            }}
-                        />
-                        <SettingRow
-                            icon="refresh-outline"
-                            title="Reset Alert Cooldown"
-                            subtitle="Clear 1h/24h blocks for all project sites"
-                            onPress={async () => {
-                                try {
-                                    await apiFetch('/notifications/clear-cooldowns', { method: 'POST' });
-                                    Alert.alert('Success', 'Alert cooldowns cleared. You can now re-test areas!');
-                                } catch (e) {
-                                    Alert.alert('Error', e.message || 'Failed to clear cooldowns');
-                                }
-                            }}
-                        />
+                        {isDevMode && (
+                            <>
+                                <SettingRow
+                                    icon="paper-plane-outline"
+                                    title="Test Push Notification"
+                                    subtitle="Send a test ping from the server"
+                                    onPress={async () => {
+                                        try {
+                                            await apiFetch('/notifications/test', { method: 'POST' });
+                                            Alert.alert('Success', 'Test notification queued on server!');
+                                        } catch (e) {
+                                            Alert.alert('Error', e.message || 'Failed to send test notification');
+                                        }
+                                    }}
+                                />
+                                <SettingRow
+                                    icon="scan-outline"
+                                    title="Trigger Geofence Scan"
+                                    subtitle="Manually run the proximity check job"
+                                    onPress={async () => {
+                                        try {
+                                            await apiFetch('/notifications/geofence-trigger', { method: 'POST' });
+                                            Alert.alert('Success', 'Geofence scan executed successfully!');
+                                        } catch (e) {
+                                            Alert.alert('Error', e.message || 'Failed to trigger geofence scan');
+                                        }
+                                    }}
+                                />
+                                <SettingRow
+                                    icon="refresh-outline"
+                                    title="Reset Alert Cooldown"
+                                    subtitle="Clear 1h/24h blocks for all project sites"
+                                    onPress={async () => {
+                                        try {
+                                            await apiFetch('/notifications/clear-cooldowns', { method: 'POST' });
+                                            Alert.alert('Success', 'Alert cooldowns cleared. You can now re-test areas!');
+                                        } catch (e) {
+                                            Alert.alert('Error', e.message || 'Failed to clear cooldowns');
+                                        }
+                                    }}
+                                />
+                            </>
+                        )}
                     </View>
 
                     {/* Admin */}

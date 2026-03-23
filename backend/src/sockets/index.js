@@ -64,7 +64,13 @@ const initSocket = (httpServer) => {
         socket.on('update_location', ({ lat, lng }) => {
             if (userId && lat && lng) {
                 const geoService = require('../services/geo.service');
+                const { checkUserGeofence } = require('../jobs/geofence.job');
+
                 geoService.updateUserLocation(userId, parseFloat(lat), parseFloat(lng))
+                    .then(() => {
+                        // Trigger immediate check for this user
+                        checkUserGeofence(userId);
+                    })
                     .catch(err => console.error('[Socket] updateUserLocation error:', err.message));
             }
         });

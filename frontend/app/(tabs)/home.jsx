@@ -16,6 +16,7 @@ import { CATEGORY_ICONS } from '../../constants/mockData';
 import { useTranslation } from 'react-i18next';
 import MapView, { Marker } from '../../components/ProjectMap';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const STATUS_COLOR = {
     'In Progress': '#00D4AA',
@@ -100,6 +101,7 @@ export default function HomeScreen() {
     const [refreshing, setRefreshing] = useState(false);
     const [locationFilter, setLocationFilter] = useState(null);
     const { isDark } = useColorScheme();
+    const [isDevMode, setIsDevMode] = useState(false);
     const iconDim = isDark ? '#9CA3AF' : '#6B7280';
 
     const { coords, label, mode, startGPS, setManual, isLocationEnabled, checkLocationPreference } = useLocation();
@@ -107,7 +109,15 @@ export default function HomeScreen() {
     useFocusEffect(
         useCallback(() => {
             checkLocationPreference();
-        }, [checkLocationPreference])
+            AsyncStorage.getItem('is_dev_mode').then(val => {
+                const dev = val === 'true';
+                setIsDevMode(dev);
+                // If dev mode is OFF and we are in manual mode, force GPS
+                if (!dev && mode === 'manual') {
+                    startGPS();
+                }
+            });
+        }, [checkLocationPreference, mode, startGPS])
     );
 
     const handleUseGPS = async () => {
@@ -177,17 +187,21 @@ export default function HomeScreen() {
             {/* Header */}
             <View className="px-4 pt-3 pb-2">
                 <View className="flex-row justify-between items-center">
-                    <TouchableOpacity className="flex-row items-center flex-1 gap-2" onPress={() => setShowLocationModal(true)}>
+                    <TouchableOpacity
+                        className="flex-row items-center flex-1 gap-2"
+                        onPress={() => isDevMode && setShowLocationModal(true)}
+                        activeOpacity={isDevMode ? 0.7 : 1}
+                    >
                         <View className={`w-7 h-7 rounded-lg items-center justify-center ${mode === 'gps' ? 'bg-[#00D4AA]/15' : 'bg-[#6366F1]/15'}`}>
                             <Ionicons name={mode === 'gps' ? 'location' : 'map'} size={15} color={mode === 'gps' ? '#00D4AA' : '#6366F1'} />
                         </View>
                         <View className="flex-1">
                             <Text className="text-txtMuted text-[10px] font-medium mb-0.5">
-                                {mode === 'gps' ? t('home.current_location', 'Current Location') : t('home.test_location', 'Test Location')}
+                                {isDevMode && mode === 'manual' ? t('home.test_location', 'Test Location') : t('home.current_location', 'Current Location')}
                             </Text>
                             <View className="flex-row items-center gap-1">
                                 <Text className="text-txt font-semibold text-sm" numberOfLines={1}>{label}</Text>
-                                <Ionicons name="chevron-down" size={12} color={iconDim} />
+                                {isDevMode && <Ionicons name="chevron-down" size={12} color={iconDim} />}
                             </View>
                         </View>
                     </TouchableOpacity>
@@ -210,7 +224,7 @@ export default function HomeScreen() {
 
                     <TouchableOpacity
                         className="w-9 h-9 rounded-full bg-surface items-center justify-center border border-cardBorder overflow-hidden"
-                        onPress={() => router.push('/settings')}
+                        onPress={() => router.push('/profile')}
                     >
                         {user?.avatar_url ? (
                             <Image source={{ uri: user.avatar_url }} className="w-full h-full rounded-full" />
@@ -222,7 +236,7 @@ export default function HomeScreen() {
             </View>
 
             {/* Mode Banner */}
-            {mode === 'manual' && (
+            {isDevMode && mode === 'manual' && (
                 <View className="px-4 mb-2">
                     <View className="flex-row items-center gap-2 px-3 py-2 rounded-lg border border-[#6366F1]/30 bg-[#6366F1]/8">
                         <Ionicons name="information-circle-outline" size={14} color="#6366F1" />

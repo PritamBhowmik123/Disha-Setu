@@ -4,6 +4,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, ActivityIndicator, RefreshControl } from 'react-native';
 import { useTranslation } from 'react-i18next';
+import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useColorScheme } from '../../hooks/use-color-scheme';
@@ -19,10 +20,14 @@ const NOTIFICATION_ICONS = {
     geo_fence_alert: { icon: 'location-outline', color: '#00D4AA' },
 };
 
-function NotifCard({ notif, isLast }) {
+function NotifCard({ notif, isLast, onPress }) {
     const meta = NOTIFICATION_ICONS[notif.type] || { icon: 'notifications-outline', color: '#9CA3AF' };
     return (
-        <View className={`flex-row items-start px-4 py-3.5 ${!isLast ? 'border-b border-cardBorder' : ''}`}>
+        <TouchableOpacity 
+            onPress={onPress}
+            activeOpacity={0.7}
+            className={`flex-row items-start px-4 py-3.5 ${!isLast ? 'border-b border-cardBorder' : ''}`}
+        >
             {/* Unread strip */}
             {!notif.read && (
                 <View className="absolute left-0 top-3 bottom-3 w-0.5 rounded-full bg-[#00D4AA]" />
@@ -41,11 +46,12 @@ function NotifCard({ notif, isLast }) {
                     {notif.time ? formatDateTime(notif.time) : ''}
                 </Text>
             </View>
-        </View>
+        </TouchableOpacity>
     );
 }
 
 export default function NotificationsScreen() {
+    const router = useRouter();
     const { isDark } = useColorScheme();
     const { t } = useTranslation();
     const iconDim = isDark ? '#9CA3AF' : '#6B7280';
@@ -90,6 +96,19 @@ export default function NotificationsScreen() {
         };
     }, []);
 
+    const handleMarkRead = async (id) => {
+        const notif = notifications.find(n => n.id === id);
+        if (!notif || notif.read) return;
+
+        try {
+            await markNotificationsRead([id]);
+            setNotifications(prev => prev.map(n => n.id === id ? { ...n, read: true } : n));
+            setUnreadCount(c => Math.max(0, c - 1));
+        } catch (err) {
+            console.error('[Notifications] Mark read error:', err.message);
+        }
+    };
+
     const handleMarkAllRead = async () => {
         await markNotificationsRead([]);
         setNotifications(prev => prev.map(n => ({ ...n, read: true })));
@@ -117,7 +136,15 @@ export default function NotificationsScreen() {
 
             {/* Geo Alert — slim banner */}
             {geoAlert && (
-                <View className="mx-4 mt-3 flex-row items-center gap-3 bg-[#00D4AA]/8 border border-[#00D4AA]/25 rounded-xl px-4 py-3">
+                <TouchableOpacity 
+                    onPress={() => {
+                        if (geoAlert.projectId) {
+                            router.push(`/project/${geoAlert.projectId}`);
+                        }
+                    }}
+                    activeOpacity={0.8}
+                    className="mx-4 mt-3 flex-row items-center gap-3 bg-[#00D4AA]/8 border border-[#00D4AA]/25 rounded-xl px-4 py-3"
+                >
                     <Ionicons name="location-outline" size={18} color="#00D4AA" />
                     <View className="flex-1">
                         <Text className="text-[#00D4AA] font-semibold text-xs">{t('notif.near_site')}</Text>
@@ -128,7 +155,7 @@ export default function NotificationsScreen() {
                     <TouchableOpacity onPress={() => setGeoAlert(null)}>
                         <Ionicons name="close" size={16} color={iconDim} />
                     </TouchableOpacity>
-                </View>
+                </TouchableOpacity>
             )}
 
             {loading ? (
@@ -151,7 +178,17 @@ export default function NotificationsScreen() {
                     ) : (
                         <View className="bg-card rounded-xl border border-cardBorder overflow-hidden">
                             {notifications.map((n, idx) => (
-                                <NotifCard key={n.id} notif={n} isLast={idx === notifications.length - 1} />
+                                <NotifCard 
+                                    key={n.id} 
+                                    notif={n} 
+                                    isLast={idx === notifications.length - 1} 
+                                    onPress={() => {
+                                        handleMarkRead(n.id);
+                                        if (n.projectId) {
+                                            router.push(`/project/${n.projectId}`);
+                                        }
+                                    }}
+                                />
                             ))}
                         </View>
                     )}

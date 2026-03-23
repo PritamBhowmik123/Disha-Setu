@@ -110,6 +110,28 @@ const getUsersNearProjectGeofences = async () => {
 };
 
 /**
+ * Get projects within a specific user's stored geofence radius.
+ */
+const getProjectsNearUser = async (userId) => {
+    const result = await query(
+        `SELECT
+            ul.user_id,
+            p.id           AS project_id,
+            p.name         AS project_name,
+            p.status,
+            p.geofence_radius,
+            ROUND(
+                ST_Distance(ul.location::geography, p.location::geography)::numeric, 0
+            ) AS distance_m
+         FROM user_locations ul
+         JOIN projects p ON ST_DWithin(ul.location::geography, p.location::geography, p.geofence_radius)
+         WHERE ul.user_id = $1`,
+        [userId]
+    );
+    return result.rows;
+};
+
+/**
  * Update a user's stored location (for geo-fence detection)
  */
 const updateUserLocation = async (userId, lat, lng) => {
@@ -126,5 +148,6 @@ module.exports = {
     getProjectsSortedByDistance,
     getProjectsNearby,
     getUsersNearProjectGeofences,
+    getProjectsNearUser,
     updateUserLocation,
 };

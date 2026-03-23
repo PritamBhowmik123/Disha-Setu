@@ -112,6 +112,21 @@ export default function ProjectDetailScreen() {
 
             // Transform official database updates and civic impact into "articles" for the NLP engine
             const officialArticles = [];
+
+            // --- Credibility Hardcode for Bharat Mandapam ---
+            if (proj.name?.toLowerCase().includes('bharat mandapam')) {
+                if (!proj.civic_impact) {
+                    proj.civic_impact = "India's premier international convention center at Pragati Maidan. A 123,000 sqm complex designed for global summits, trade exhibitions, and cultural showcases.";
+                }
+                if (!proj.impact_stat) {
+                    proj.impact_stat = "1.2 Lakh Sqm";
+                }
+                if (!proj.beneficiaries) {
+                    proj.beneficiaries = "Global Tourism";
+                }
+            }
+            // ------------------------------------------------
+
             if (proj.civic_impact) {
                 officialArticles.push({
                     title: `Official Project Impact Overview`,

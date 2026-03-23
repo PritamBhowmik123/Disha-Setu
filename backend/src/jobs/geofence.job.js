@@ -13,6 +13,60 @@ const { query } = require('../config/db');
 const recentAlerts = new Map();
 const ALERT_COOLDOWN_MS = 60 * 60 * 1000; // 1 hour cooldown per (user, project) pair
 
+const processProximityPair = async (pair) => {
+    const key = `${pair.user_id}:${pair.project_id}`;
+    const lastAlert = recentAlerts.get(key);
+
+    // Skip if recently alerted (1h in-memory)
+    if (lastAlert && (Date.now() - lastAlert) < ALERT_COOLDOWN_MS) return;
+
+    // Check if notification was already sent in DB (24h window)
+    const existingRes = await query(
+        `SELECT id FROM notifications
+         WHERE user_id = $1
+           AND project_id = $2
+           AND type = 'geo_fence_alert'
+           AND created_at > NOW() - INTERVAL '24 hours'
+         LIMIT 1`,
+        [pair.user_id, pair.project_id]
+    );
+
+    if (existingRes.rows.length > 0) {
+        recentAlerts.set(key, Date.now());
+        return;
+    }
+
+    // Send notification
+    const distanceText = pair.distance_m < 1000
+        ? `${pair.distance_m}m`
+        : `${(pair.distance_m / 1000).toFixed(1)}km`;
+
+    await createNotification({
+        userId: pair.user_id,
+        projectId: pair.project_id,
+        type: 'geo_fence_alert',
+        title: `You're near a project site!`,
+        message: `${pair.project_name} is ${distanceText} away. Tap to learn more.`,
+    });
+
+    // Emit Socket.io geo_alert to user's room
+    try {
+        const { getIO } = require('../sockets');
+        const io = getIO();
+        io.to(`user:${pair.user_id}`).emit('geo_alert', {
+            projectId: pair.project_id,
+            projectName: pair.project_name,
+            distanceM: pair.distance_m,
+            status: pair.status,
+        });
+    } catch (_) {
+        // Socket.io may not be initialized yet
+    }
+
+    recentAlerts.set(key, Date.now());
+    console.log(`[Geofence] Alert sent → user:${pair.user_id}, project:${pair.project_name}, dist:${pair.distance_m}m`);
+};
+
 const runGeofenceCheck = async () => {
     try {
         const pairs = await getUsersNearProjectGeofences();
@@ -21,60 +75,25 @@ const runGeofenceCheck = async () => {
         console.log(`[Geofence] Checking ${pairs.length} user-project proximity pairs...`);
 
         for (const pair of pairs) {
-            const key = `${pair.user_id}:${pair.project_id}`;
-            const lastAlert = recentAlerts.get(key);
-
-            // Skip if recently alerted
-            if (lastAlert && (Date.now() - lastAlert) < ALERT_COOLDOWN_MS) continue;
-
-            // Check if notification was already sent in DB (24h window)
-            const existingRes = await query(
-                `SELECT id FROM notifications
-                 WHERE user_id = $1
-                   AND project_id = $2
-                   AND type = 'geo_fence_alert'
-                   AND created_at > NOW() - INTERVAL '24 hours'
-                 LIMIT 1`,
-                [pair.user_id, pair.project_id]
-            );
-
-            if (existingRes.rows.length > 0) {
-                recentAlerts.set(key, Date.now());
-                continue;
-            }
-
-            // Send notification
-            const distanceText = pair.distance_m < 1000
-                ? `${pair.distance_m}m`
-                : `${(pair.distance_m / 1000).toFixed(1)}km`;
-
-            await createNotification({
-                userId: pair.user_id,
-                projectId: pair.project_id,
-                type: 'geo_fence_alert',
-                title: `You're near a project site!`,
-                message: `${pair.project_name} is ${distanceText} away. Tap to learn more.`,
-            });
-
-            // Emit Socket.io geo_alert to user's room
-            try {
-                const { getIO } = require('../sockets');
-                const io = getIO();
-                io.to(`user:${pair.user_id}`).emit('geo_alert', {
-                    projectId: pair.project_id,
-                    projectName: pair.project_name,
-                    distanceM: pair.distance_m,
-                    status: pair.status,
-                });
-            } catch (_) {
-                // Socket.io may not be initialized yet
-            }
-
-            recentAlerts.set(key, Date.now());
-            console.log(`[Geofence] Alert sent → user:${pair.user_id}, project:${pair.project_name}, dist:${pair.distance_m}m`);
+            await processProximityPair(pair);
         }
     } catch (err) {
         console.error('[Geofence] Job error:', err.message);
+    }
+};
+
+/**
+ * Trigger immediate check for a single user (e.g. after location update)
+ */
+const checkUserGeofence = async (userId) => {
+    try {
+        const { getProjectsNearUser } = require('../services/geo.service');
+        const pairs = await getProjectsNearUser(userId);
+        for (const pair of pairs) {
+            await processProximityPair(pair);
+        }
+    } catch (err) {
+        console.error('[Geofence] checkUserGeofence error:', err.message);
     }
 };
 
@@ -90,4 +109,4 @@ const clearRecentAlerts = () => {
     console.log('[Geofence] In-memory alert cooldowns cleared.');
 };
 
-module.exports = { startGeofenceJob, runGeofenceCheck, clearRecentAlerts };
+module.exports = { startGeofenceJob, runGeofenceCheck, checkUserGeofence, clearRecentAlerts };

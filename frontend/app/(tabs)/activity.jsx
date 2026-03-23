@@ -23,13 +23,17 @@ const STATUS_COLORS = {
     resolved: '#10B981',
 };
 
-function ActivityItem({ report, isLast }) {
+function ActivityItem({ report, isLast, onPress }) {
     const color = CATEGORY_COLORS[report.category] || '#6366F1';
     const statusColor = STATUS_COLORS[report.status] || '#9CA3AF';
     const timeAgo = formatRelativeTime(report.created_at);
 
     return (
-        <View className={`py-4 flex-row items-start ${!isLast ? 'border-b border-cardBorder' : ''}`}>
+        <TouchableOpacity 
+            onPress={onPress}
+            activeOpacity={0.7}
+            className={`py-4 flex-row items-start ${!isLast ? 'border-b border-cardBorder' : ''}`}
+        >
             <View className="w-9 h-9 rounded-lg items-center justify-center mr-3 mt-0.5" style={{ backgroundColor: `${color}18` }}>
                 <Ionicons name="chatbubble-outline" size={17} color={color} />
             </View>
@@ -50,7 +54,7 @@ function ActivityItem({ report, isLast }) {
                     <Text className="text-txtMuted text-[10px] ml-auto">{timeAgo}</Text>
                 </View>
             </View>
-        </View>
+        </TouchableOpacity>
     );
 }
 
@@ -205,6 +209,11 @@ export default function ActivityScreen() {
                                         key={report.id}
                                         report={report}
                                         isLast={index === reports.length - 1}
+                                        onPress={() => {
+                                            if (report.project_id) {
+                                                router.push(`/project/${report.project_id}`);
+                                            }
+                                        }}
                                     />
                                 ))}
                             </View>
