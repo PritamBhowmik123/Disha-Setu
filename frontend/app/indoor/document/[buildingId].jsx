@@ -17,11 +17,6 @@ import { apiFetch, BASE_URL } from '../../../services/api';
 // Derive server root (e.g. http://192.168.x.x:3000) from auto-detected BASE_URL
 const SERVER_ROOT = BASE_URL.replace(/\/api\/?$/, '');
 
-const EXAMPLE_INTENTS = [
-    'Blood test required. OPD consultation. Pharmacy for medication.',
-    'Emergency. Radiology X-Ray. Registration.',
-    'Lab sample collection. Ultrasound. Pharmacy prescription.',
-];
 
 function DirectionStep({ step, isLast }) {
     const iconMap = {
@@ -177,7 +172,7 @@ export default function DocumentNavigationScreen() {
                         <View className="bg-[#F59E0B]/10 border border-[#F59E0B]/30 rounded-2xl p-4 mb-5 flex-row items-start">
                             <Ionicons name="document-text-outline" size={20} color="#F59E0B" style={{ marginRight: 10, marginTop: 1 }} />
                             <Text className="text-[#FDE68A] text-sm flex-1 leading-5">
-                                Describe your visit (blood test, consultation, etc.) or upload a prescription / token, and we'll auto-generate your navigation route.
+                                Describe your visit or upload a document, and we'll auto-generate your navigation route.
                             </Text>
                         </View>
 
@@ -186,27 +181,12 @@ export default function DocumentNavigationScreen() {
                         <TextInput
                             className="bg-[#1A2035] border border-[#2D3548] rounded-2xl p-4 text-white mb-4"
                             style={{ minHeight: 100, textAlignVertical: 'top' }}
-                            placeholder="e.g. Blood test required. OPD consultation with doctor. Need pharmacy prescription."
+                            placeholder="Describe your needs (e.g., find a room, office, help desk, or service)"
                             placeholderTextColor="#4B5563"
                             multiline
                             value={textInput}
                             onChangeText={setTextInput}
                         />
-
-                        {/* Example Chips */}
-                        <Text className="text-[#6B7280] text-xs mb-2">Try an example:</Text>
-                        <ScrollView horizontal showsHorizontalScrollIndicator={false} className="mb-5">
-                            {EXAMPLE_INTENTS.map((ex, i) => (
-                                <TouchableOpacity
-                                    key={i}
-                                    onPress={() => setTextInput(ex)}
-                                    className="bg-[#1A2035] border border-[#2D3548] rounded-xl px-3 py-2 mr-2"
-                                    style={{ maxWidth: 200 }}
-                                >
-                                    <Text className="text-[#9CA3AF] text-xs" numberOfLines={2}>{ex}</Text>
-                                </TouchableOpacity>
-                            ))}
-                        </ScrollView>
 
                         {/* Divider */}
                         <View className="flex-row items-center mb-5">
@@ -222,7 +202,7 @@ export default function DocumentNavigationScreen() {
                         >
                             <Ionicons name="cloud-upload-outline" size={36} color={selectedFile ? '#F59E0B' : '#4B5563'} />
                             <Text className="text-white font-semibold mt-2">
-                                {selectedFile ? selectedFile.name : 'Upload Prescription / Token'}
+                                {selectedFile ? selectedFile.name : 'Upload Document'}
                             </Text>
                             <Text className="text-[#6B7280] text-xs mt-1">PDF, TXT, or Image (max 5MB)</Text>
                         </TouchableOpacity>

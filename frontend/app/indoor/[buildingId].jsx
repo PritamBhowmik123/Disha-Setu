@@ -138,11 +138,6 @@ function DirectionStep({ step, isLast }) {
     );
 }
 
-const SMART_EXAMPLES = [
-    'Blood test required. OPD consultation. Pharmacy for medication.',
-    'Emergency. Radiology X-Ray. Registration.',
-    'Lab sample collection. Ultrasound. Pharmacy prescription.',
-];
 
 function SmartDirectionStep({ step, isLast }) {
     const icon = step.roomType === 'elevator' ? 'arrow-up-circle' : step.roomType === 'stairs' ? 'footsteps' : 'arrow-forward';
@@ -863,7 +858,7 @@ export default function IndoorNavigationScreen() {
                                     <Text className="text-white font-bold text-base flex-1">Smart Route Generator</Text>
                                 </View>
                                 <Text className="text-[#9CA3AF] text-sm leading-5">
-                                    Describe your visit or upload a prescription / token — we'll automatically extract your needs and map your exact navigation route.
+                                    Describe your visit or upload a document — we'll automatically extract your needs and map your exact navigation route.
                                 </Text>
                             </View>
 
@@ -872,27 +867,12 @@ export default function IndoorNavigationScreen() {
                             <TextInput
                                 className="bg-surface border border-cardBorder rounded-2xl p-4 text-txt mb-4"
                                 style={{ minHeight: 100, textAlignVertical: 'top' }}
-                                placeholder="e.g. Blood test required. OPD consultation. Need pharmacy."
+                                placeholder="Describe your needs (e.g., find a room, office, help desk, or service)"
                                 placeholderTextColor="#6B7280"
                                 multiline
                                 value={smartText}
                                 onChangeText={setSmartText}
                             />
-
-                            {/* Example Chips */}
-                            <Text className="text-[#6B7280] text-xs mb-2">Try an example:</Text>
-                            <ScrollView horizontal showsHorizontalScrollIndicator={false} className="mb-5">
-                                {SMART_EXAMPLES.map((ex, i) => (
-                                    <TouchableOpacity
-                                        key={i}
-                                        onPress={() => { setSmartText(ex); setSmartFile(null); }}
-                                        className="bg-card border border-cardBorder rounded-xl px-3 py-2 mr-2"
-                                        style={{ maxWidth: 200 }}
-                                    >
-                                        <Text className="text-txtMuted text-xs" numberOfLines={2}>{ex}</Text>
-                                    </TouchableOpacity>
-                                ))}
-                            </ScrollView>
 
                             {/* Divider */}
                             <View className="flex-row items-center mb-5">
@@ -908,7 +888,7 @@ export default function IndoorNavigationScreen() {
                             >
                                 <Ionicons name="cloud-upload-outline" size={36} color={smartFile ? '#F59E0B' : '#6B7280'} />
                                 <Text className="text-txt font-semibold mt-2">
-                                    {smartFile ? smartFile.name : 'Upload Prescription / Token'}
+                                    {smartFile ? smartFile.name : 'Upload Document'}
                                 </Text>
                                 <Text className="text-txtMuted text-xs mt-1">PDF, TXT, or Image (max 5MB)</Text>
                             </TouchableOpacity>
