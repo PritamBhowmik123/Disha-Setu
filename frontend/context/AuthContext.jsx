@@ -31,8 +31,15 @@ export function AuthProvider({ children }) {
         try {
             // 🔥 Clear Google session
             if (Platform.OS === 'android') {
-                await GoogleSignin.revokeAccess();
-                await GoogleSignin.signOut();
+                try {
+                    const isSignedIn = await GoogleSignin.isSignedIn();
+                    if (isSignedIn) {
+                        await GoogleSignin.revokeAccess();
+                        await GoogleSignin.signOut();
+                    }
+                } catch (googleError) {
+                    console.log("Google logout skipped/failed:", googleError);
+                }
             }
 
             // Clear app auth
