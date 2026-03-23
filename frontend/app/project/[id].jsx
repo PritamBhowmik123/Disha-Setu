@@ -12,10 +12,15 @@ import { useColorScheme } from '../../hooks/use-color-scheme';
 import { useLocation } from '../../hooks/use-location';
 import { haversineKm } from '../../utils/distance';
 import { formatDate } from '../../utils/dateFormatter';
+
 import { fetchProjectById, fetchProjectUpdates, fetchProjectFeedback } from '../../services/projectService';
+
+import { fetchProjectById, fetchProjectUpdates, fetchNewsImpact } from '../../services/projectService';
+
 import { fetchBuildings } from '../../services/indoorNavigationService';
 import { CATEGORY_ICONS } from '../../constants/mockData';
 import { subscribeToProject, unsubscribeFromProject, onProjectUpdate } from '../../services/socketService';
+import NewsImpactCard from '../../components/NewsImpactCard';
 
 const STATUS_STYLE = {
     'In Progress': { bg: '#00D4AA18', text: '#00D4AA', border: '#00D4AA35' },
@@ -59,7 +64,11 @@ export default function ProjectDetailScreen() {
 
     const [project, setProject] = useState(null);
     const [updates, setUpdates] = useState([]);
+
     const [reviews, setReviews] = useState([]);
+
+    const [newsImpactData, setNewsImpactData] = useState(null);
+
     const [loading, setLoading] = useState(true);
     const [liveUpdate, setLiveUpdate] = useState(null);
     const [building, setBuilding] = useState(null);
@@ -97,7 +106,36 @@ export default function ProjectDetailScreen() {
             ]);
             setProject(proj);
             setUpdates(upds);
+
             setReviews(revs);
+
+
+            // Transform official database updates and civic impact into "articles" for the NLP engine
+            const officialArticles = [];
+            if (proj.civic_impact) {
+                officialArticles.push({
+                    title: `Official Project Impact Overview`,
+                    content: `${proj.civic_impact}. Capacity: ${proj.beneficiaries || ''} ${proj.impact_stat || ''}`,
+                    url: null
+                });
+            }
+            if (upds && upds.length > 0) {
+                upds.forEach(u => {
+                    officialArticles.push({
+                        title: `Official Status Update: ${u.title}`,
+                        content: u.body,
+                        url: null
+                    });
+                });
+            }
+
+            fetchNewsImpact(proj.id, proj.name, proj.area, officialArticles)
+                .then(res => {
+                    setNewsImpactData(res || { found: false, articles: [] });
+                })
+                .catch(err => console.log('NLP Engine Error:', err));
+
+
             try {
                 const buildings = await fetchBuildings();
                 const projectBuilding = buildings.find(b => b.project_id === id);
@@ -243,6 +281,9 @@ export default function ProjectDetailScreen() {
                     </View>
                 )}
 
+                {/* --- AI News Impact Extraction Engine --- */}
+                {newsImpactData && <NewsImpactCard data={newsImpactData} />}
+
                 {/* Timeline */}
                 {milestones.length > 0 && (
                     <View className="mx-4 mb-4">
@@ -358,7 +399,7 @@ export default function ProjectDetailScreen() {
                                 let st = { bg: '#6B728018', text: '#6B7280', border: '#6B728035' }; // Pending / Default
                                 if (r.status === 'Resolved') st = { bg: '#10B98118', text: '#10B981', border: '#10B98135' };
                                 else if (r.status === 'Under Review') st = { bg: '#F59E0B18', text: '#F59E0B', border: '#F59E0B35' };
-                                
+
                                 const icon = CATEGORY_ICONS[r.category] || 'report-problem';
                                 return (
                                     <View key={r.ticket_id} className="p-4" style={{ borderBottomWidth: i < reviews.length - 1 ? 1 : 0, borderBottomColor: isDark ? '#1F2937' : '#E5E7EB' }}>

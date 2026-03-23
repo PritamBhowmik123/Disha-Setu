@@ -20,6 +20,7 @@ const locationsRoutes = require('./routes/locations.routes');
 const docAnalysisRoutes = require('./routes/document-analysis.routes');
 const roomInsightsRoutes = require('./routes/room-insights.routes');
 const incidentRoutingRoutes = require('./routes/incident-routing.routes');
+const newsImpactRoutes = require('./routes/news-impact.routes');
 
 
 const app = express();
@@ -57,8 +58,8 @@ const limiter = rateLimit({
 app.use('/api/', limiter);
 
 // Stricter limit on auth endpoints to prevent brute-force
-const authLimiter = rateLimit({ 
-    windowMs: 15 * 60 * 1000, 
+const authLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
     max: 50,
     standardHeaders: true,
     legacyHeaders: false,
@@ -84,6 +85,7 @@ app.use('/api/locations', locationsRoutes);  // Dynamic preset locations
 app.use('/api', docAnalysisRoutes);           // Document-aware navigation (extension)
 app.use('/api', roomInsightsRoutes);          // Context-aware room insights
 app.use('/api', incidentRoutingRoutes);       // Dynamic incident-based routing
+app.use('/api', newsImpactRoutes);            // AI News Impact Extraction
 
 
 // ── 404 Handler ────────────────────────────────────────────────

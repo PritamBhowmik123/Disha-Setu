@@ -5,7 +5,7 @@ import * as Haptics from 'expo-haptics';
 let cachedVoices = null;
 Speech.getAvailableVoicesAsync().then(voices => {
     cachedVoices = voices;
-}).catch(() => {});
+}).catch(() => { });
 
 export const VoiceHapticEngine = {
     /**
@@ -149,7 +149,7 @@ export const VoiceHapticEngine = {
 
         // Trigger Voice TTS with fallback to English
         const textToSpeak = action.speech[language] || action.speech['en'];
-        
+
         // Map app language to standard BCP 47 language tags to fetch high-quality regional voices
         const bcp47Tags = {
             en: 'en-IN', hi: 'hi-IN', bn: 'bn-IN', ta: 'ta-IN',
@@ -167,14 +167,14 @@ export const VoiceHapticEngine = {
 
             if (voices && voices.length > 0) {
                 // Try exact regional match first (e.g. 'en-IN')
-                let langVoices = voices.filter(v => 
+                let langVoices = voices.filter(v =>
                     v.language && v.language.replace('_', '-').toLowerCase() === speechLanguage.toLowerCase()
                 );
 
                 // Fallback to primary language match (e.g. any 'en' or 'hi' voice) if region-specific is missing
                 if (langVoices.length === 0) {
                     const primaryLang = speechLanguage.split('-')[0].toLowerCase();
-                    langVoices = voices.filter(v => 
+                    langVoices = voices.filter(v =>
                         v.language && v.language.toLowerCase().startsWith(primaryLang)
                     );
                 }
@@ -185,11 +185,11 @@ export const VoiceHapticEngine = {
                         const score = (v) => {
                             let pts = 0;
                             const nameLower = v.name.toLowerCase();
-                            
+
                             // 1. STRONGLY prefer female identifiers and known Indian female voices
                             if (nameLower.includes('female') || nameLower.includes('woman') || nameLower.includes('girl')) pts += 50;
                             if (['lekha', 'isha', 'sangeeta', 'vani', 'kannada', 'pallavi'].some(n => nameLower.includes(n))) pts += 50;
-                            
+
                             // 2. Penalize known male identifiers to strictly enforce the restriction
                             if (['rishi', 'male', 'boy', 'man'].some(n => nameLower.includes(n)) && !nameLower.includes('female')) pts -= 50;
 
@@ -199,7 +199,7 @@ export const VoiceHapticEngine = {
 
                             // 4. Penalize standard/robotic local voices
                             if (nameLower.includes('local')) pts -= 10;
-                            
+
                             return pts;
                         };
                         return score(b) - score(a);
@@ -211,7 +211,7 @@ export const VoiceHapticEngine = {
                 }
             }
 
-            Speech.speak(textToSpeak, options);
+            playNeuralTTS(textToSpeak, speechLanguage, options);
         };
 
         // Execute intelligently with zero navigation delay
@@ -231,9 +231,9 @@ export const VoiceHapticEngine = {
             action.haptic.forEach(({ fn, style }, index) => {
                 setTimeout(() => {
                     if (fn === 'notification') {
-                        Haptics.notificationAsync(style).catch(() => {});
+                        Haptics.notificationAsync(style).catch(() => { });
                     } else {
-                        Haptics.impactAsync(style).catch(() => {});
+                        Haptics.impactAsync(style).catch(() => { });
                     }
                 }, index * 300); // stagger multiple bumps by 300ms
             });

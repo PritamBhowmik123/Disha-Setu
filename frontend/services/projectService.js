@@ -42,3 +42,10 @@ export const updateUserLocation = async (lat, lng) => {
         body: JSON.stringify({ lat, lng }),
     });
 };
+
+export const fetchNewsImpact = async (projectId, projectName = '', projectArea = '', articles = []) => {
+    return apiFetch('/news-impact', {
+        method: 'POST',
+        body: JSON.stringify({ project: { id: projectId, name: projectName, area: projectArea }, articles })
+    });
+};
