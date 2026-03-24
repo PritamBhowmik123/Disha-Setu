@@ -1,0 +1,86 @@
+[
+  {
+    "id": "aad658d2-d084-4494-8e3c-d6603050c92d",
+    "name": "Main Entrance",
+    "type": "entrance",
+    "floor_number": 0,
+    "floor_name": "Ground Floor"
+  },
+  {
+    "id": "dfbc3e03-03ff-42d8-9fe4-94c869dc8c2b",
+    "name": "Registration Desk",
+    "type": "reception",
+    "floor_number": 0,
+    "floor_name": "Ground Floor"
+  },
+  {
+    "id": "44851baf-62b2-4a7e-b1e5-9736717034b8",
+    "name": "Exhibition Hall A",
+    "type": "other",
+    "floor_number": 0,
+    "floor_name": "Ground Floor"
+  },
+  {
+    "id": "8598a699-61a6-4e7c-a893-5c442b3e155b",
+    "name": "Exhibition Hall B",
+    "type": "other",
+    "floor_number": 0,
+    "floor_name": "Ground Floor"
+  },
+  {
+    "id": "c90faf3f-2b16-4e1a-a1f3-696bec8973a2",
+    "name": "Food Court",
+    "type": "cafeteria",
+    "floor_number": 0,
+    "floor_name": "Ground Floor"
+  },
+  {
+    "id": "e1ba15bb-f23a-4e5c-b94c-c163db8feedb",
+    "name": "Restrooms",
+    "type": "other",
+    "floor_number": 0,
+    "floor_name": "Ground Floor"
+  },
+  {
+    "id": "3a0631d5-e965-4d14-a5fc-23f036d42f8b",
+    "name": "Staircase - Ground",
+    "type": "stairs",
+    "floor_number": 0,
+    "floor_name": "Ground Floor"
+  },
+  {
+    "id": "c3889470-59a8-4555-9fbb-7d45d5829b2a",
+    "name": "Elevator - Ground",
+    "type": "elevator",
+    "floor_number": 0,
+    "floor_name": "Ground Floor"
+  },
+  {
+    "id": "2dd2439e-31ca-446e-9fff-fb85dc28cf58",
+    "name": "Conference Hall 1",
+    "type": "other",
+    "floor_number": 1,
+    "floor_name": "Level 1"
+  },
+  {
+    "id": "92ab785f-55ec-4fde-a0ea-4f584219cb12",
+    "name": "VIP Lounge",
+    "type": "other",
+    "floor_number": 1,
+    "floor_name": "Level 1"
+  },
+  {
+    "id": "28753774-0d5d-48e2-9e60-39e1ec844d85",
+    "name": "Staircase - Level 1",
+    "type": "stairs",
+    "floor_number": 1,
+    "floor_name": "Level 1"
+  },
+  {
+    "id": "133576c6-59fc-44cc-a450-62476aa9ab97",
+    "name": "Elevator - Level 1",
+    "type": "elevator",
+    "floor_number": 1,
+    "floor_name": "Level 1"
+  }
+]

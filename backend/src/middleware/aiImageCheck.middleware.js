@@ -20,8 +20,8 @@
 'use strict';
 
 // ─── JPEG EXIF marker constants ──────────────────────────────────────────────
-const JPEG_SOI    = [0xFF, 0xD8];      // Start of JPEG file
-const JPEG_APP1   = [0xFF, 0xE1];      // APP1 segment (contains EXIF)
+const JPEG_SOI = [0xFF, 0xD8];      // Start of JPEG file
+const JPEG_APP1 = [0xFF, 0xE1];      // APP1 segment (contains EXIF)
 const EXIF_HEADER = Buffer.from('Exif\x00\x00'); // EXIF identifier within APP1
 
 // ─── PNG signature ───────────────────────────────────────────────────────────

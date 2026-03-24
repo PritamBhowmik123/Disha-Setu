@@ -1,0 +1,23 @@
+{
+  "vip_rooms": [
+    {
+      "id": "92ab785f-55ec-4fde-a0ea-4f584219cb12",
+      "name": "VIP Lounge",
+      "type": "other",
+      "is_accessible": true,
+      "is_landmark": false
+    }
+  ],
+  "edges": [
+    {
+      "id": "960e6309-500b-4828-b63c-5f10f1e4e9b3",
+      "from_room": "2dd2439e-31ca-446e-9fff-fb85dc28cf58",
+      "to_room": "92ab785f-55ec-4fde-a0ea-4f584219cb12",
+      "distance": "5.00",
+      "is_bidirectional": true,
+      "is_accessible": true,
+      "notes": null,
+      "created_at": "2026-03-23T06:43:25.564Z"
+    }
+  ]
+}

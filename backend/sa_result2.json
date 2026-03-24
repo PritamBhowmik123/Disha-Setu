@@ -1,0 +1,96 @@
+{
+  "found": true,
+  "intents": [
+    "Conference Hall 1"
+  ],
+  "mappedRooms": [
+    {
+      "intent": "Conference Hall 1",
+      "roomType": "other"
+    }
+  ],
+  "steps": [
+    {
+      "id": "aad658d2-d084-4494-8e3c-d6603050c92d",
+      "name": "Main Entrance",
+      "type": "entrance",
+      "floor": 0
+    },
+    {
+      "id": "2dd2439e-31ca-446e-9fff-fb85dc28cf58",
+      "name": "Conference Hall 1",
+      "type": "other",
+      "floor": 1
+    }
+  ],
+  "route": {
+    "found": true,
+    "totalDistance": 17,
+    "path": [
+      "aad658d2-d084-4494-8e3c-d6603050c92d",
+      "dfbc3e03-03ff-42d8-9fe4-94c869dc8c2b",
+      "c3889470-59a8-4555-9fbb-7d45d5829b2a",
+      "133576c6-59fc-44cc-a450-62476aa9ab97",
+      "2dd2439e-31ca-446e-9fff-fb85dc28cf58"
+    ],
+    "directions": [
+      {
+        "step": 1,
+        "roomId": "aad658d2-d084-4494-8e3c-d6603050c92d",
+        "roomName": "Main Entrance",
+        "roomType": "entrance",
+        "floorNumber": 0,
+        "instruction": "Start at Main Entrance (Floor 0)"
+      },
+      {
+        "step": 2,
+        "roomId": "dfbc3e03-03ff-42d8-9fe4-94c869dc8c2b",
+        "roomName": "Registration Desk",
+        "roomType": "reception",
+        "floorNumber": 0,
+        "instruction": "Continue to Registration Desk"
+      },
+      {
+        "step": 3,
+        "roomId": "c3889470-59a8-4555-9fbb-7d45d5829b2a",
+        "roomName": "Elevator - Ground",
+        "roomType": "elevator",
+        "floorNumber": 0,
+        "instruction": "Proceed to Elevator - Ground"
+      },
+      {
+        "step": 4,
+        "roomId": "133576c6-59fc-44cc-a450-62476aa9ab97",
+        "roomName": "Elevator - Level 1",
+        "roomType": "elevator",
+        "floorNumber": 1,
+        "instruction": "Take elevator to Floor 1"
+      },
+      {
+        "step": 5,
+        "roomId": "2dd2439e-31ca-446e-9fff-fb85dc28cf58",
+        "roomName": "Conference Hall 1",
+        "roomType": "other",
+        "floorNumber": 1,
+        "instruction": "Arrive at Conference Hall 1 (Floor 1)"
+      }
+    ],
+    "legs": [
+      {
+        "from": "Main Entrance",
+        "to": "Conference Hall 1",
+        "distance": 17,
+        "found": true
+      }
+    ],
+    "from": {
+      "name": "Main Entrance",
+      "floor": 0
+    },
+    "to": {
+      "name": "Conference Hall 1",
+      "floor": 1
+    }
+  },
+  "message": null
+}

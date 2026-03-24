@@ -4,6 +4,9 @@ import { Platform } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useTranslation } from 'react-i18next';
 import { useColorScheme } from '../../hooks/use-color-scheme';
+import { Buffer } from 'buffer';
+
+global.Buffer = Buffer;
 
 export default function TabLayout() {
     const { isDark } = useColorScheme();

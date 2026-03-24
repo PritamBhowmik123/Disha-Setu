@@ -210,7 +210,7 @@ export default function FeedbackScreen() {
                         /* ── Inline crop editor — appears in place of the picker ── */
                         <InlineCropEditor
                             uri={pendingPhoto.uri}
-                            origWidth={pendingPhoto.width  || 1000}
+                            origWidth={pendingPhoto.width || 1000}
                             origHeight={pendingPhoto.height || 1000}
                             onConfirm={handleEditConfirm}
                             onCancel={handleEditCancel}

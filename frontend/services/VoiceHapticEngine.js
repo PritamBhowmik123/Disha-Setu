@@ -7,138 +7,145 @@ Speech.getAvailableVoicesAsync().then(voices => {
     cachedVoices = voices;
 }).catch(() => { });
 
+// ── Deduplication guard ──────────────────────────────────────────────────────
+// Tracks the last announced step by a unique key so voice never fires twice
+// for the same step, even if the component re-renders or the timer ticks.
+let _lastSpokenKey = null;
+
 export const VoiceHapticEngine = {
     /**
-     * Triggers voice instructions and haptic vibrations based on the navigation step
+     * Triggers voice instructions and haptic vibrations based on the navigation step.
+     * Voice fires at most ONCE per unique step (dedup by roomId + stepIndex).
      * @param {Object} step - The direction step object from the routing engine
-     * @param {string} language - 'en' (English) or 'hi' (Hindi)
+     * @param {string} language - 'en' | 'hi' | 'bn' | 'ta' | 'te' | 'mr' | 'kn' | 'pa' | 'ml'
+     * @param {boolean} [force=false] - Skip dedup check (use for manual "repeat" button)
      */
-    triggerInstruction(step, language = 'en') {
+    triggerInstruction(step, language = 'en', force = false) {
         if (!step) return;
 
-        const { instruction, roomType, roomName } = step;
+        // ── Deduplication ─────────────────────────────────────────────────────
+        const stepKey = `${step.roomId ?? step.roomName}-${step.step}`;
+        if (!force && stepKey === _lastSpokenKey) return;   // already announced
+        _lastSpokenKey = stepKey;
 
-        let actionKey = 'STRAIGHT'; // default
+        // Stop any currently-playing speech so instructions never overlap
+        Speech.stop();
 
-        if (instruction.includes('Arrive')) {
-            actionKey = 'ARRIVED';
-        } else if (instruction.includes('Start')) {
-            actionKey = 'START';
-        } else if (roomType === 'elevator') {
-            actionKey = 'ELEVATOR';
-        } else if (roomType === 'stairs') {
-            actionKey = 'STAIRS';
-        } else if (instruction.includes('left') || instruction.includes('Left')) {
-            actionKey = 'LEFT_TURN';
-        } else if (instruction.includes('right') || instruction.includes('Right')) {
-            actionKey = 'RIGHT_TURN';
-        }
+        const { instruction, roomType, roomName, floorNumber } = step;
 
-        // Clean the instruction string by removing text inside brackets like "(Floor 0)"
-        const cleanInstructionStr = instruction.replace(/\s*\(.*?\)\s*/g, '').trim();
+        // ── Classify action ────────────────────────────────────────────────────
+        let actionKey = 'STRAIGHT';
+        if (/arrive|arrived|destination/i.test(instruction))        actionKey = 'ARRIVED';
+        else if (/start|begin|depart/i.test(instruction))           actionKey = 'START';
+        else if (roomType === 'elevator' || roomType === 'lift')     actionKey = 'ELEVATOR';
+        else if (roomType === 'stairs' || roomType === 'staircase')  actionKey = 'STAIRS';
+        else if (/left/i.test(instruction))                          actionKey = 'LEFT_TURN';
+        else if (/right/i.test(instruction))                         actionKey = 'RIGHT_TURN';
 
-        // NotificationFeedbackType values: 'success' | 'warning' | 'error'
-        // ImpactFeedbackStyle values: 'light' | 'medium' | 'heavy' | 'rigid' | 'soft'
-        // Tag each haptic entry so we know which API to call.
-        const N = (style) => ({ fn: 'notification', style }); // notificationAsync
-        const I = (style) => ({ fn: 'impact', style });       // impactAsync
+        // Floor phrasing helper
+        const floorSuffix = floorNumber !== undefined
+            ? ` to Floor ${floorNumber === 0 ? 'G (ground)' : floorNumber}`
+            : '';
+
+        const N = (style) => ({ fn: 'notification', style });
+        const I = (style) => ({ fn: 'impact', style });
 
         const dictionary = {
-            'LEFT_TURN': {
+            LEFT_TURN: {
                 speech: {
-                    en: `${cleanInstructionStr}. Turn left ahead.`,
-                    hi: 'Aage se baaye mudiye',
-                    bn: 'Samne theke bam dike ghurun',
-                    ta: 'Munnalirundhu idadhu puram thirumbavum',
-                    te: 'Mundu nundi edama vaipu thiragandi',
-                    mr: 'Pudhun daavikade valaa',
-                    kn: 'Mundininda edakke tirugi',
-                    pa: 'Agge to khabbe mudo',
-                    ml: 'Munnil ninnu idathottu thiriyuka'
+                    en: `Turn left and continue toward ${roomName}.`,
+                    hi: `Baaye mudiye aur ${roomName} ki taraf badhein.`,
+                    bn: `Bam dike ghurun ebong ${roomName} dike egiye jan.`,
+                    ta: `Idadhu puram thirumbi ${roomName} nokki sellavum.`,
+                    te: `Edama vaipu thiragi ${roomName} vaipu vellandi.`,
+                    mr: `Daavikade vala ani ${roomName} kade jaa.`,
+                    kn: `Edakke tirugi ${roomName} kadege hogi.`,
+                    pa: `Khabbe mudo te ${roomName} wal jao.`,
+                    ml: `Idathottu thirini ${roomName} lottu pokuka.`
                 },
                 haptic: [I(Haptics.ImpactFeedbackStyle.Medium), I(Haptics.ImpactFeedbackStyle.Medium)],
             },
-            'RIGHT_TURN': {
+            RIGHT_TURN: {
                 speech: {
-                    en: `${cleanInstructionStr}. Turn right ahead.`,
-                    hi: 'Aage se daaye mudiye',
-                    bn: 'Samne theke dan dike ghurun',
-                    ta: 'Munnalirundhu valadhu puram thirumbavum',
-                    te: 'Mundu nundi kudi vaipu thiragandi',
-                    mr: 'Pudhun ujavikade valaa',
-                    kn: 'Mundininda balakke tirugi',
-                    pa: 'Agge to sajje mudo',
-                    ml: 'Munnil ninnu valathottu thiriyuka'
+                    en: `Turn right and head toward ${roomName}.`,
+                    hi: `Daaye mudiye aur ${roomName} ki taraf jaiye.`,
+                    bn: `Dan dike ghurun ebong ${roomName} dike jan.`,
+                    ta: `Valadhu puram thirumbi ${roomName} nokki sellavum.`,
+                    te: `Kudi vaipu thiragi ${roomName} vaipu vellandi.`,
+                    mr: `Ujavikade vala ani ${roomName} kade jaa.`,
+                    kn: `Balakke tirugi ${roomName} kadege hogi.`,
+                    pa: `Sajje mudo te ${roomName} wal jao.`,
+                    ml: `Valathottu thirini ${roomName} lottu pokuka.`
                 },
                 haptic: [I(Haptics.ImpactFeedbackStyle.Heavy)],
             },
-            'ELEVATOR': {
+            ELEVATOR: {
                 speech: {
-                    en: `${cleanInstructionStr}. Take the elevator.`,
-                    hi: 'Lift lijiye',
-                    bn: 'Lift nin',
-                    ta: 'Liftil sellavum',
-                    te: 'Lift teesukondi',
-                    mr: 'Lift ghya',
-                    kn: 'Lift tegedukolli',
-                    pa: 'Lift lao',
-                    ml: 'Lift edukuka'
+                    en: `Take the elevator${floorSuffix}. Then head toward ${roomName}.`,
+                    hi: `Lift lijiye${floorSuffix}. Phir ${roomName} ki taraf jaiye.`,
+                    bn: `Lift nin${floorSuffix}. Tarpor ${roomName} dike jan.`,
+                    ta: `Liftil sellavum${floorSuffix}. Appuram ${roomName} nokki sellavum.`,
+                    te: `Lift teesukondi${floorSuffix}. Tarvatha ${roomName} vaipu vellandi.`,
+                    mr: `Lift ghya${floorSuffix}. Mag ${roomName} kade jaa.`,
+                    kn: `Lift tegedukolli${floorSuffix}. Nantar ${roomName} kadege hogi.`,
+                    pa: `Lift lao${floorSuffix}. Phir ${roomName} wal jao.`,
+                    ml: `Lift edukuka${floorSuffix}. Pinne ${roomName} lottu pokuka.`
                 },
                 haptic: [I(Haptics.ImpactFeedbackStyle.Light), I(Haptics.ImpactFeedbackStyle.Medium), I(Haptics.ImpactFeedbackStyle.Light)],
             },
-            'STAIRS': {
+            STAIRS: {
                 speech: {
-                    en: `${cleanInstructionStr}. Take the stairs.`,
-                    hi: 'Seedhiyon se jaiye',
-                    bn: 'Siri diye jan',
-                    ta: 'Padiyaga sellavum',
-                    te: 'Metlu ekkandi',
-                    mr: 'Padyavrun jaa',
-                    kn: 'Mettilugalanu balasi',
-                    pa: 'Pauriya to jao',
-                    ml: 'Padiyiloode pokuka'
+                    en: `Use the stairs${floorSuffix}. Continue toward ${roomName}.`,
+                    hi: `Seedhiyon se jaiye${floorSuffix}. ${roomName} ki taraf badhein.`,
+                    bn: `Siri diye jan${floorSuffix}. ${roomName} dike egiye jan.`,
+                    ta: `Padiyaga sellavum${floorSuffix}. ${roomName} nokki thodarvum.`,
+                    te: `Metlu ekkandi${floorSuffix}. ${roomName} vaipu vellandi.`,
+                    mr: `Padyavrun jaa${floorSuffix}. ${roomName} kade chala.`,
+                    kn: `Mettilugalanu balasi${floorSuffix}. ${roomName} kadege hogi.`,
+                    pa: `Pauriya to jao${floorSuffix}. ${roomName} wal jao.`,
+                    ml: `Padiyiloode pokuka${floorSuffix}. ${roomName} lottu thodarnnu pokuka.`
                 },
                 haptic: [I(Haptics.ImpactFeedbackStyle.Medium), I(Haptics.ImpactFeedbackStyle.Light)],
             },
-            'STRAIGHT': {
+            STRAIGHT: {
                 speech: {
-                    en: `${cleanInstructionStr}. Head straight towards ${roomName}.`,
-                    hi: `Seedha ${roomName} ki taraf jaiye`,
-                    bn: `Shoja ${roomName} -er dike jan`,
-                    ta: `Neraaga ${roomName} nokki sellavum`,
-                    te: `Nerega ${roomName} vaipu vellandi`,
-                    mr: `Sarak ${roomName} kade jaa`,
-                    kn: `Nera ${roomName} kadege hogi`,
-                    pa: `Siddha ${roomName} val jao`,
-                    ml: `Nere ${roomName} lottu pokuka`
+                    en: `Go straight for a few meters toward ${roomName}.`,
+                    hi: `Kuch kadam seedha jaiye, ${roomName} ki taraf.`,
+                    bn: `Kichutu shoja egiye jan, ${roomName} dike.`,
+                    ta: `Sila meter neraaga sellavum, ${roomName} nokki.`,
+                    te: `Kొంత dooram nera vellandi, ${roomName} vaipu.`,
+                    mr: `Kahi meter sarak jaa, ${roomName} kade.`,
+                    kn: `Svalpa doora nera hogi, ${roomName} kadege.`,
+                    pa: `Kuch kadam seedha jao, ${roomName} wal.`,
+                    ml: `Kure meetar nere pokuka, ${roomName} lottu.`
                 },
                 haptic: null,
             },
-            'START': {
+            START: {
                 speech: {
-                    en: `${cleanInstructionStr}. Starting from ${roomName}.`,
-                    hi: `${roomName} se shuruat karein.`,
-                    bn: `${roomName} theke shuru korun.`,
-                    ta: `${roomName} inirundhu thodangavum.`,
-                    te: `${roomName} nundi prarambhinchandi.`,
-                    mr: `${roomName} pasun survaat kara.`,
-                    kn: `${roomName} inda prarambhisi.`,
-                    pa: `${roomName} to shuru karo.`,
-                    ml: `${roomName} l ninnu thudanguka.`
+                    en: `Navigation started. You are at ${roomName}. Follow the route ahead.`,
+                    hi: `Navigation shuru. Aap ${roomName} par hain. Aage ke route ka anusaran karein.`,
+                    bn: `Navigation shuru. Apni ${roomName} te achen. Samner route anusaran korun.`,
+                    ta: `Navigation thondangivitta. Neengal ${roomName} il irukkeengal. Route-ai pinn thodaravum.`,
+                    te: `Navigation start aindi. Meeru ${roomName} lo unnaru. Mundu route follow cheyandi.`,
+                    mr: `Navigation suruu zali. Tumhi ${roomName} la ahat. Pudhe route follow kara.`,
+                    kn: `Navigation shuru aiytu. Neevu ${roomName} nalli iddiri. Mundina route follow madi.`,
+                    pa: `Navigation shuru ho gayi. Tusi ${roomName} te ho. Age route follow karo.`,
+                    ml: `Navigation thuadangi. Ningal ${roomName} il anu. Munnil route pinthudarchukuka.`
                 },
                 haptic: [N(Haptics.NotificationFeedbackType.Success)],
             },
-            'ARRIVED': {
+            ARRIVED: {
                 speech: {
-                    en: `${cleanInstructionStr}. You have arrived at ${roomName}.`,
-                    hi: `Aap ${roomName} pahunch gaye hain`,
-                    bn: `Apni ${roomName} pouche gechen`,
-                    ta: `Neengal ${roomName} vandhadainthumeer`,
-                    te: `Meeru ${roomName} cherukunnaru`,
-                    mr: `Tumhi ${roomName} pohochla ahat`,
-                    kn: `Neevu ${roomName} talupidiri`,
-                    pa: `Tussi ${roomName} pahunch gaye ho`,
-                    ml: `Ningal ${roomName} ethiyirikkunnu`
+                    en: `You have arrived at ${roomName}. Your destination is ahead.`,
+                    hi: `Aap ${roomName} pahunch gaye hain. Aapki manzil saamne hai.`,
+                    bn: `Apni ${roomName} pouche gechen. Apnar destination saamne.`,
+                    ta: `Neengal ${roomName} vandhadainthumeer. Ungal destination munnale.`,
+                    te: `Meeru ${roomName} cherukunnaru. Meeru destination mundule.`,
+                    mr: `Tumhi ${roomName} pohochla ahat. Tumcha destination samor aahe.`,
+                    kn: `Neevu ${roomName} talupidiri. Nimma destination mundide.`,
+                    pa: `Tussi ${roomName} pahunch gaye ho. Tumhada destination samne hai.`,
+                    ml: `Ningal ${roomName} ethiyirikkunnu. Ningalude destination munnilaanu.`
                 },
                 haptic: [N(Haptics.NotificationFeedbackType.Success)],
             },
@@ -147,96 +154,69 @@ export const VoiceHapticEngine = {
         const action = dictionary[actionKey];
         if (!action) return;
 
-        // Trigger Voice TTS with fallback to English
-        const textToSpeak = action.speech[language] || action.speech['en'];
-
-        // Map app language to standard BCP 47 language tags to fetch high-quality regional voices
+        // ── TTS with voice selection ───────────────────────────────────────────
         const bcp47Tags = {
             en: 'en-IN', hi: 'hi-IN', bn: 'bn-IN', ta: 'ta-IN',
             te: 'te-IN', mr: 'mr-IN', kn: 'kn-IN', pa: 'pa-IN', ml: 'ml-IN'
         };
-
         const speechLanguage = bcp47Tags[language] || 'en-IN';
+        const textToSpeak = action.speech[language] || action.speech['en'];
 
         const speakWithOptions = (voices) => {
-            const options = {
-                language: speechLanguage,
-                pitch: 1.15, // Slightly higher pitch for a clearer, younger human girl-like tone
-                rate: 0.9,  // Comfortable conversational pacing
-            };
+            const options = { language: speechLanguage, pitch: 1.1, rate: 0.9 };
 
-            if (voices && voices.length > 0) {
-                // Try exact regional match first (e.g. 'en-IN')
+            if (voices?.length > 0) {
                 let langVoices = voices.filter(v =>
-                    v.language && v.language.replace('_', '-').toLowerCase() === speechLanguage.toLowerCase()
+                    v.language?.replace('_', '-').toLowerCase() === speechLanguage.toLowerCase()
                 );
-
-                // Fallback to primary language match (e.g. any 'en' or 'hi' voice) if region-specific is missing
-                if (langVoices.length === 0) {
-                    const primaryLang = speechLanguage.split('-')[0].toLowerCase();
-                    langVoices = voices.filter(v =>
-                        v.language && v.language.toLowerCase().startsWith(primaryLang)
-                    );
+                if (!langVoices.length) {
+                    const primary = speechLanguage.split('-')[0].toLowerCase();
+                    langVoices = voices.filter(v => v.language?.toLowerCase().startsWith(primary));
                 }
-
                 if (langVoices.length > 0) {
-                    // Intelligent Voice Selection: Pick the clearest, human-like female voice
                     const bestVoice = langVoices.sort((a, b) => {
-                        const score = (v) => {
+                        const score = v => {
                             let pts = 0;
-                            const nameLower = v.name.toLowerCase();
-
-                            // 1. STRONGLY prefer female identifiers and known Indian female voices
-                            if (nameLower.includes('female') || nameLower.includes('woman') || nameLower.includes('girl')) pts += 50;
-                            if (['lekha', 'isha', 'sangeeta', 'vani', 'kannada', 'pallavi'].some(n => nameLower.includes(n))) pts += 50;
-
-                            // 2. Penalize known male identifiers to strictly enforce the restriction
-                            if (['rishi', 'male', 'boy', 'man'].some(n => nameLower.includes(n)) && !nameLower.includes('female')) pts -= 50;
-
-                            // 3. Prioritize high-quality / neural / human-like clarity
+                            const n = v.name.toLowerCase();
+                            if (/female|woman|girl/.test(n)) pts += 50;
+                            if (['lekha', 'isha', 'sangeeta', 'vani', 'pallavi'].some(k => n.includes(k))) pts += 50;
+                            if (/rishi|male|boy|man/.test(n) && !n.includes('female')) pts -= 50;
                             if (v.quality === 'Enhanced' || v.quality === 'Premium') pts += 20;
-                            if (nameLower.includes('network') || nameLower.includes('neural')) pts += 20;
-
-                            // 4. Penalize standard/robotic local voices
-                            if (nameLower.includes('local')) pts -= 10;
-
+                            if (/network|neural/.test(n)) pts += 20;
+                            if (n.includes('local')) pts -= 10;
                             return pts;
                         };
                         return score(b) - score(a);
                     })[0];
-
-                    if (bestVoice && bestVoice.identifier) {
-                        options.voice = bestVoice.identifier;
-                    }
+                    if (bestVoice?.identifier) options.voice = bestVoice.identifier;
                 }
             }
-
-            playNeuralTTS(textToSpeak, speechLanguage, options);
+            Speech.speak(textToSpeak, options);
         };
 
-        // Execute intelligently with zero navigation delay
         if (cachedVoices) {
             speakWithOptions(cachedVoices);
         } else {
-            Speech.getAvailableVoicesAsync().then((fetchedVoices) => {
-                cachedVoices = fetchedVoices;
-                speakWithOptions(fetchedVoices);
-            }).catch(() => {
-                speakWithOptions(null); // Fallback safety
-            });
+            Speech.getAvailableVoicesAsync().then(v => {
+                cachedVoices = v;
+                speakWithOptions(v);
+            }).catch(() => speakWithOptions(null));
         }
 
-        // Trigger Haptic Vibration Patterns
+        // ── Haptic ────────────────────────────────────────────────────────────
         if (action.haptic) {
-            action.haptic.forEach(({ fn, style }, index) => {
+            action.haptic.forEach(({ fn, style }, i) => {
                 setTimeout(() => {
-                    if (fn === 'notification') {
-                        Haptics.notificationAsync(style).catch(() => { });
-                    } else {
-                        Haptics.impactAsync(style).catch(() => { });
-                    }
-                }, index * 300); // stagger multiple bumps by 300ms
+                    if (fn === 'notification') Haptics.notificationAsync(style).catch(() => {});
+                    else Haptics.impactAsync(style).catch(() => {});
+                }, i * 300);
             });
         }
-    }
+    },
+
+    /** Reset dedup guard — call this when a new route starts */
+    reset() {
+        _lastSpokenKey = null;
+        Speech.stop();
+    },
 };

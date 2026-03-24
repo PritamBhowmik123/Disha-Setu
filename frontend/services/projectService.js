@@ -4,7 +4,7 @@
  */
 import { apiFetch } from './api';
 
-export const fetchProjects = async ({ lat, lng, limit = 50 } = {}) => {
+export const fetchProjects = async ({ lat, lng, limit = 1000 } = {}) => {
     let path = '/projects';
     const params = new URLSearchParams();
     if (lat != null) params.append('lat', lat);

@@ -13,6 +13,7 @@ router.get('/buildings/:id', indoorNavController.getBuildingById);
 router.get('/buildings/:id/floors', indoorNavController.getBuildingFloors);
 router.get('/floors/:id', indoorNavController.getFloorById);
 router.get('/floors/:id/rooms', indoorNavController.getFloorRooms);
+router.get('/floors/:id/connections', indoorNavController.getFloorConnections);
 router.get('/rooms/:id', indoorNavController.getRoomById);
 
 // Navigation routes

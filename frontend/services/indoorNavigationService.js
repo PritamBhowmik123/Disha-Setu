@@ -72,5 +72,11 @@ export const getActiveIncidents = async (buildingId = null) => {
     return data;
 };
 
+export const fetchFloorConnections = async (floorId) => {
+    const data = await apiFetch(`/floors/${floorId}/connections`);
+    return data.connections || [];
+};
+
 // Alias for compatibility
 export const getBuildings = fetchBuildings;
+

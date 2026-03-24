@@ -301,6 +301,40 @@ async function buildMultiStepRoute(orderedRooms, accessibleOnly = false) {
     };
 }
 
+async function extractDynamicIntentsWithAI(text, category, rooms) {
+    const apiKey = process.env.GEMINI_API_KEY;
+    if (!apiKey) return null;
+
+    try {
+        const { GoogleGenerativeAI } = require('@google/generative-ai');
+        const genAI = new GoogleGenerativeAI(apiKey);
+        const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+
+        const roomNames = rooms.map(r => r.name).join(', ');
+
+        const prompt = `
+You are a smart navigation assistant for a ${category || 'building'}. Analyze the following document text and extract the list of exact destinations the user needs to visit.
+
+Document text:
+"""${text.slice(0, 2000)}"""
+
+Available destinations in this building:
+${roomNames}
+
+Return a JSON array of the exact destination names from the available list that match the document. Do not include locations not in the list. Example: ["Hall 1", "Registration"]
+`;
+
+        const result = await model.generateContent(prompt);
+        const raw = result.response.text().trim();
+        const match = raw.match(/\[.*?\]/s);
+        if (match) return JSON.parse(match[0]);
+        return null;
+    } catch (err) {
+        console.warn('[DocAnalysis] Dynamic Gemini extraction failed:', err.message);
+        return null;
+    }
+}
+
 /**
  * Main entry point: analyze document buffer and return navigation plan
  */
@@ -310,40 +344,102 @@ async function analyzeDocumentAndRoute(fileBuffer, mimetype, buildingId, options
     // Step 1: Extract text
     const rawText = await extractTextFromBuffer(fileBuffer, mimetype);
 
-    // Step 2: Extract intents (AI first, then keyword fallback)
+    // Get building context to determine if it's hospital or generic
+    const projectRes = await query(`
+        SELECT p.category 
+        FROM buildings b 
+        JOIN projects p ON b.project_id = p.id 
+        WHERE b.id = $1
+    `, [buildingId]);
+    const isHospital = !projectRes.rows[0] || projectRes.rows[0].category === 'hospital';
+
     let intents = null;
-    if (rawText.length > 10) {
-        intents = await extractIntentsWithAI(rawText);
-    }
-    if (!intents || intents.length === 0) {
-        intents = extractIntentsFromText(rawText || '');
-    }
-
-    // Step 3: Map intents to room types (keeping the text order)
-    const mappedRooms = mapIntentsToRoomTypes(intents);
-
-    if (mappedRooms.length === 0) {
-        return {
-            found: false,
-            message: 'No recognizable medical intents found in the document.',
-            rawText: rawText.slice(0, 300),
-            intents: [],
-            mappedRooms: [],
-            steps: [],
-            route: null,
-        };
-    }
-
-    // Step 4: Find entrance first, then matched rooms
-    const entranceRoom = await findRoomForType(buildingId, 'entrance');
+    let mappedRooms = [];
     const roomsToVisit = [];
 
+    // Step 4: Find entrance first
+    const entranceRoom = await findRoomForType(buildingId, 'entrance');
     if (entranceRoom) roomsToVisit.push(entranceRoom);
 
-    for (const { intent, roomType } of mappedRooms) {
-        const room = await findRoomForType(buildingId, roomType, intent);
-        if (room && !roomsToVisit.find(r => r.id === room.id)) {
-            roomsToVisit.push(room);
+    if (isHospital) {
+        // --- EXISTING HOSPITAL LOGIC ---
+        if (rawText.length > 10) {
+            intents = await extractIntentsWithAI(rawText);
+        }
+        if (!intents || intents.length === 0) {
+            intents = extractIntentsFromText(rawText || '');
+        }
+
+        mappedRooms = mapIntentsToRoomTypes(intents);
+
+        if (mappedRooms.length === 0) {
+            return {
+                found: false,
+                message: 'No recognizable medical intents found in the document.',
+                rawText: rawText.slice(0, 300),
+                intents: [],
+                mappedRooms: [],
+                steps: [],
+                route: null,
+            };
+        }
+
+        for (const { intent, roomType } of mappedRooms) {
+            const room = await findRoomForType(buildingId, roomType, intent);
+            if (room && !roomsToVisit.find(r => r.id === room.id)) {
+                roomsToVisit.push(room);
+            }
+        }
+    } else {
+        // --- NEW GENERIC BUILDING LOGIC (e.g., Bharat Mandapam) ---
+        const roomsRes = await query(`
+            SELECT r.id, r.name, r.type, r.keywords, f.floor_number
+            FROM rooms r 
+            JOIN floors f ON r.floor_id = f.id 
+            WHERE f.building_id = $1
+        `, [buildingId]);
+        const allRooms = roomsRes.rows;
+
+        if (rawText.length > 10) {
+            intents = await extractDynamicIntentsWithAI(rawText, projectRes.rows[0]?.category, allRooms);
+        }
+        
+        // Dynamic Keyword Fallback if AI fails or isn't configured
+        if (!intents || intents.length === 0) {
+            intents = [];
+            const lowerText = rawText.toLowerCase();
+            for (const r of allRooms) {
+                if (lowerText.includes(r.name.toLowerCase())) {
+                    if (!intents.includes(r.name)) intents.push(r.name);
+                } else if (r.keywords) {
+                    for (const kw of r.keywords) {
+                        if (lowerText.includes(kw.toLowerCase())) {
+                            if (!intents.includes(r.name)) intents.push(r.name); 
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+
+        if (!intents || intents.length === 0) {
+            return {
+                found: false, 
+                message: 'No recognizable destinations found in the document for this location.',
+                rawText: rawText.slice(0, 300), 
+                intents: [], 
+                mappedRooms: [], 
+                steps: [], 
+                route: null,
+            };
+        }
+
+        for (const intentName of intents) {
+            const room = allRooms.find(r => r.name === intentName);
+            if (room && !roomsToVisit.find(r => r.id === room.id)) {
+                mappedRooms.push({ intent: intentName, roomType: room.type });
+                roomsToVisit.push(room);
+            }
         }
     }
 
@@ -354,8 +450,8 @@ async function analyzeDocumentAndRoute(fileBuffer, mimetype, buildingId, options
 
     return {
         found: route.found,
-        intents,
-        mappedRooms: mappedRooms.map(m => ({ intent: m.intent, roomType: m.roomType })),
+        intents: intents || [],
+        mappedRooms,
         steps: roomsToVisit.map(r => ({ id: r.id, name: r.name, type: r.type, floor: r.floor_number })),
         route: route.found ? route : null,
         message: route.found ? null : route.message,

@@ -3,6 +3,7 @@
  * Indoor navigation endpoints
  */
 const indoorNavService = require('../services/indoor-navigation.service');
+const { query } = require('../config/db');
 
 // ── GET /api/buildings ──────────────────────────────────────────
 const getBuildings = async (req, res, next) => {
@@ -135,12 +136,37 @@ const getRoute = async (req, res, next) => {
     }
 };
 
+// ── GET /api/floors/:id/connections ──────────────────────────────
+// Returns all corridor connections whose both rooms belong to this floor.
+const getFloorConnections = async (req, res, next) => {
+    try {
+        const { id } = req.params;
+        const floor = await indoorNavService.getFloorById(id);
+        if (!floor) return res.status(404).json({ error: 'Floor not found' });
+
+        // Fetch connections where BOTH endpoints are on this floor
+        const result = await query(
+            `SELECT c.from_room AS room_a_id, c.to_room AS room_b_id, c.distance, c.is_accessible
+             FROM connections c
+             JOIN rooms ra ON c.from_room = ra.id
+             JOIN rooms rb ON c.to_room   = rb.id
+             WHERE ra.floor_id = $1 AND rb.floor_id = $1`,
+            [id]
+        );
+
+        res.json({ connections: result.rows });
+    } catch (err) {
+        next(err);
+    }
+};
+
 module.exports = {
     getBuildings,
     getBuildingById,
     getBuildingFloors,
     getFloorById,
     getFloorRooms,
+    getFloorConnections,
     getRoomById,
     searchRooms,
     getRoute,
