@@ -28,9 +28,9 @@ const SERVER_ROOT = BASE_URL.replace(/\/api\/?$/, '');
 import ZeroReadOverlayUI from '../../components/ZeroReadOverlayUI';
 import IndoorMapView from '../../components/IndoorMapView';
 import MapFloorSelector from '../../components/MapFloorSelector';
-import { VoiceHapticEngine } from '../../services/VoiceHapticEngine';
 import { fetchFloorConnections } from '../../services/indoorNavigationService';
 import { useTranslation } from 'react-i18next';
+import { useVoiceNavigation } from '../../hooks/useVoiceNavigation';
 
 
 const ROOM_TYPE_ICONS = {
@@ -172,6 +172,9 @@ export default function IndoorNavigationScreen() {
     const router = useRouter();
     const { isDark } = useColorScheme();
     const { t, i18n } = useTranslation();
+
+    // ── Voice Navigation (ElevenLabs-backed, queue-based) ────────────────────
+    const { speak, cancel: cancelVoice, reset: resetVoice } = useVoiceNavigation();
 
     // ── Tab state (NEW) ──────────────────────────────────────
     const [activeTab, setActiveTab] = useState('navigation'); // 'navigation' | 'smart'
@@ -406,7 +409,7 @@ export default function IndoorNavigationScreen() {
         setCurrentStepIndex(0);
 
         if (route?.directions?.[0]) {
-            VoiceHapticEngine.triggerInstruction(route.directions[0], i18n.language);
+            speak(route.directions[0], i18n.language, true);
         }
 
         // Auto-trigger insight for first step
@@ -430,10 +433,10 @@ export default function IndoorNavigationScreen() {
         }
 
         if (route?.directions?.[nextIdx]) {
-            VoiceHapticEngine.triggerInstruction(route.directions[nextIdx], i18n.language);
+            speak(route.directions[nextIdx], i18n.language);
         }
 
-        const insights = buildingInsights[route.directions[nextIdx].roomId];
+        const insights = buildingInsights[route.directions[nextIdx]?.roomId];
         if (insights?.length) {
             const insight = insights[0];
             setInsightHistory(prev => prev.find(h => h.title === insight.title) ? prev : [insight, ...prev]);
@@ -441,7 +444,12 @@ export default function IndoorNavigationScreen() {
         }
     };
 
-    const stopNavigating = () => { setNavigating(false); setCurrentStepIndex(-1); setActiveInsight(null); };
+    const stopNavigating = () => {
+        setNavigating(false);
+        setCurrentStepIndex(-1);
+        setActiveInsight(null);
+        cancelVoice(); // stop any ongoing audio immediately
+    };
 
     // ── Map View helpers ────────────────────────────────────────────────────
     /** Load rooms + connections for the given floor into map state */
@@ -471,52 +479,76 @@ export default function IndoorNavigationScreen() {
         await loadMapFloorData(startFloor);
     };
 
-    /** Stop map auto-navigation timer */
+    /** Stop map auto-navigation: clears timer and cancels audio */
     const stopMapNavigation = () => {
         if (mapTimerRef.current) {
             clearTimeout(mapTimerRef.current);
             mapTimerRef.current = null;
         }
         setMapNavigating(false);
+        cancelVoice(); // synchronous — stops audio immediately
     };
 
-    /** Start map auto-navigation: advances step based on dynamic pacing */
+    /**
+     * Start map auto-navigation.
+     *
+     * FIX summary (v2):
+     * - cancel() is now synchronous (generation-counter based), so there is
+     *   no async race between "stop old audio" and "start new audio".
+     * - We do NOT call stopMapNavigation() here to avoid a double-cancel.
+     *   Instead we inline the timer clear and call resetVoice() once.
+     * - Steps are enqueued ONE AT A TIME as the visual timer ticks, not all
+     *   upfront. This prevents stale items if the route is reset mid-play.
+     *   The audio queue still ensures each step plays to completion before
+     *   the next begins.
+     * - The visual timer is kept at 4s — enough for typical TTS sentences.
+     *   Audio continues playing even if visual advances early (queue runs
+     *   independently).
+     */
     const startMapNavigation = () => {
         const dirs = route?.directions || [];
         if (!dirs.length) return;
-        stopMapNavigation();
-        VoiceHapticEngine.reset();   // clear dedup guard + stop any lingering speech
+
+        // 1. Clear visual timer (don't call stopMapNavigation — avoids double-cancel)
+        if (mapTimerRef.current) {
+            clearTimeout(mapTimerRef.current);
+            mapTimerRef.current = null;
+        }
+        setMapNavigating(false);
+
+        // 2. Reset audio: synchronous cancel + dedup key clear
+        resetVoice();
+
+        // 3. Initialize
         mapStepRef.current = 0;
         setMapStepIndex(0);
         setMapNavigating(true);
 
-        // Announce step 0 immediately
-        if (dirs[0]) VoiceHapticEngine.triggerInstruction(dirs[0], i18n.language, true);
+        // 4. Speak step 0 immediately after reset (cancel is now sync — no race)
+        if (dirs[0]) speak(dirs[0], i18n.language, true /* force: skip dedup */);
 
-        // Recursive timeout for dynamic pacing based on sentence length
-        const scheduleNextStep = () => {
+        // 5. Visual progression: advance map highlight every 4s
+        //    Each tick also enqueues the NEXT audio step.
+        //    The queue ensures step N audio waits for step N-1 to finish.
+        const scheduleNextVisualStep = () => {
             const currentIdx = mapStepRef.current;
             if (currentIdx >= dirs.length - 1) {
-                stopMapNavigation();
+                setMapNavigating(false);
                 setMapStepIndex(dirs.length - 1);
+                mapTimerRef.current = null;
                 return;
             }
-
-            // Estimate time based on instruction length (approx 75ms per character + 1s base padding)
-            // Or default to 2.5s if not available
-            const currentInstructionText = dirs[currentIdx]?.instruction || '';
-            const delayMs = Math.max(2500, currentInstructionText.length * 75 + 1000);
 
             mapTimerRef.current = setTimeout(() => {
                 mapStepRef.current += 1;
                 const nextIdx = mapStepRef.current;
-
                 setMapStepIndex(nextIdx);
 
                 if (dirs[nextIdx]) {
-                    VoiceHapticEngine.triggerInstruction(dirs[nextIdx], i18n.language);
+                    // Enqueue next step — queue plays it after current finishes
+                    speak(dirs[nextIdx], i18n.language);
 
-                    // Auto-switch floor: use mapFloorRef (always fresh)
+                    // Auto-switch floor if step is on a different floor
                     const stepFloor = building?.floors?.find(
                         f => f.floor_number === dirs[nextIdx].floorNumber
                     );
@@ -525,19 +557,16 @@ export default function IndoorNavigationScreen() {
                     }
                 }
 
-                // Schedule next
-                scheduleNextStep();
-
-            }, delayMs);
+                scheduleNextVisualStep();
+            }, 4000); // 4s per visual step — gives typical TTS time to finish
         };
 
-        // Kick off the loop
-        scheduleNextStep();
+        scheduleNextVisualStep();
     };
 
     const resetNavigation = () => {
-        stopMapNavigation();
-        VoiceHapticEngine.reset();   // stop speech + reset dedup for next route
+        stopMapNavigation(); // also calls cancelVoice() internally
+        resetVoice();        // drain queue + reset dedup key for clean start
         setMapStepIndex(0);
         setStartRoom(null);
         setEndRoom(null);
@@ -1130,7 +1159,11 @@ export default function IndoorNavigationScreen() {
                                         const prev = Math.max(0, mapStepIndex - 1);
                                         setMapStepIndex(prev);
                                         mapStepRef.current = prev;
-                                        if (route?.directions?.[prev]) VoiceHapticEngine.triggerInstruction(route.directions[prev], i18n.language);
+                                        // cancel() is now sync — cancel then speak immediately
+                                        if (route?.directions?.[prev]) {
+                                            cancelVoice();
+                                            speak(route.directions[prev], i18n.language, true);
+                                        }
                                     }}
                                     style={{ backgroundColor: '#1F2937', borderRadius: 18, paddingHorizontal: 18, paddingVertical: 14, justifyContent: 'center', borderWidth: 1, borderColor: '#374151' }}
                                 >
@@ -1141,7 +1174,11 @@ export default function IndoorNavigationScreen() {
                                         const next = Math.min((route?.directions?.length || 1) - 1, mapStepIndex + 1);
                                         setMapStepIndex(next);
                                         mapStepRef.current = next;
-                                        if (route?.directions?.[next]) VoiceHapticEngine.triggerInstruction(route.directions[next], i18n.language);
+                                        // cancel() is now sync — cancel then speak immediately
+                                        if (route?.directions?.[next]) {
+                                            cancelVoice();
+                                            speak(route.directions[next], i18n.language, true);
+                                        }
                                     }}
                                     style={{ backgroundColor: '#1F2937', borderRadius: 18, paddingHorizontal: 18, paddingVertical: 14, justifyContent: 'center', borderWidth: 1, borderColor: '#374151' }}
                                 >
@@ -1299,7 +1336,7 @@ export default function IndoorNavigationScreen() {
                                                     setCurrentStepIndex(0);
 
                                                     if (smartResult.route?.directions?.[0]) {
-                                                        VoiceHapticEngine.triggerInstruction(smartResult.route.directions[0], i18n.language);
+                                                        speak(smartResult.route.directions[0], i18n.language, true);
                                                     }
 
                                                     // Fire insight for first step if available
@@ -1332,7 +1369,7 @@ export default function IndoorNavigationScreen() {
                                                         }
 
                                                         if (dirs[nextIdx]) {
-                                                            VoiceHapticEngine.triggerInstruction(dirs[nextIdx], i18n.language);
+                                                            speak(dirs[nextIdx], i18n.language);
                                                         }
 
                                                         if (dirs[nextIdx]?.roomId) {
