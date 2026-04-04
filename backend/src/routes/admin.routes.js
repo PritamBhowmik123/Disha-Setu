@@ -41,6 +41,7 @@ router.post('/navigation/floors', adminController.addFloor);
 
 // Blueprint Scan
 router.post('/navigation/scan-blueprint', upload.single('blueprint'), adminController.scanBlueprint);
+router.post('/navigation/sync-miro', adminController.syncFromMiro);
 
 // ── User Management ────────────────────────────────────────
 router.get('/users', adminController.getAllUsers);

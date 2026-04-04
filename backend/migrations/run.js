@@ -6,9 +6,9 @@
  *   node migrations/run.js              # Run all migrations
  *   node migrations/run.js 001_init     # Run specific migration
  */
-require('dotenv').config();
-const fs = require('fs');
 const path = require('path');
+const fs = require('fs');
+require('dotenv').config({ path: path.join(__dirname, '../.env') });
 const { Pool } = require('pg');
 
 const pool = new Pool({ connectionString: process.env.DATABASE_URL });
@@ -18,9 +18,11 @@ const MIGRATIONS = [
     '002_indoor_navigation.sql',
     '003_add_admin_role.sql',
     '004_update_room_types.sql',
+    '005_add_miro_support.sql',
 ];
 
 async function run() {
+    console.log('Connecting to database...');
     const client = await pool.connect();
     const targetMigration = process.argv[2];
     

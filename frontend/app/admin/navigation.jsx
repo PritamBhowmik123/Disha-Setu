@@ -8,7 +8,7 @@ import { useRouter } from 'expo-router';
 import { useState, useEffect, useCallback } from 'react';
 import { useColorScheme } from '../../hooks/use-color-scheme';
 import { useAuth } from '../../context/AuthContext';
-import { getNavigationData, deleteRoom, deleteConnection, addRoom, addConnection, getAllIncidents, createIncident, toggleIncident, deleteIncident, scanBlueprint } from '../../services/adminService';
+import { getNavigationData, deleteRoom, deleteConnection, addRoom, addConnection, getAllIncidents, createIncident, toggleIncident, deleteIncident, scanBlueprint, syncFromMiro } from '../../services/adminService';
 import { getBuildings, fetchBuildingFloors } from '../../services/indoorNavigationService';
 import { apiFetch } from '../../services/api';
 import Ionicons from '@expo/vector-icons/Ionicons';
@@ -684,6 +684,8 @@ function BlueprintScanModal({ visible, onClose, onScan, buildings }) {
     const [showBuildingPicker, setShowBuildingPicker] = useState(false);
     const [showFloorPicker, setShowFloorPicker] = useState(false);
     const [image, setImage] = useState(null);
+    const [miroUrl, setMiroUrl] = useState(null);
+    const [syncing, setSyncing] = useState(false);
 
     useEffect(() => {
         if (selectedBuilding) {
@@ -736,24 +738,19 @@ function BlueprintScanModal({ visible, onClose, onScan, buildings }) {
             Alert.alert('Error', 'Please select a floor');
             return;
         }
-        if (!image) {
-            Alert.alert('Error', 'Please select or take an image of the blueprint');
-            return;
-        }
+        if (!selectedFloor || !image) return;
 
-        console.log("[Blueprint Scan] Starting upload process for floor:", selectedFloor.id);
         setLoading(true);
+        setMiroUrl(null);
         try {
             const formData = new FormData();
             formData.append('floor_id', selectedFloor.id);
 
             if (Platform.OS === 'web') {
-                console.log("[Blueprint Scan] Web platform detected. Fetching blob...");
                 const response = await fetch(image.uri);
                 const blob = await response.blob();
                 formData.append('blueprint', blob, 'blueprint.jpg');
             } else {
-                console.log("[Blueprint Scan] Native platform detected.");
                 // @ts-ignore
                 formData.append('blueprint', {
                     uri: image.uri,
@@ -762,21 +759,47 @@ function BlueprintScanModal({ visible, onClose, onScan, buildings }) {
                 });
             }
 
-            console.log("[Blueprint Scan] Calling scanBlueprint API...");
             const res = await scanBlueprint(formData);
             console.log("[Blueprint Scan] Scan success:", res);
             
-            Alert.alert('Success', 'Blueprint scanned and processed successfully!');
-            setImage(null);
-            setSelectedBuilding(null);
-            setSelectedFloor(null);
-            onScan();
-            onClose();
+            if (res.miroBoardUrl) {
+                setMiroUrl(res.miroBoardUrl);
+                Alert.alert(
+                    'Success', 
+                    'AI Analysis complete! Your editable map has been sent to Miro.',
+                    [
+                        { text: 'Open Miro', onPress: () => {
+                            if (Platform.OS === 'web') window.open(res.miroBoardUrl, '_blank');
+                        }},
+                        { text: 'OK' }
+                    ]
+                );
+            } else {
+                Alert.alert('Success', 'Blueprint scanned and processed successfully!');
+                onScan();
+                onClose();
+            }
         } catch (err) {
             console.error("[Blueprint Scan] Scan error:", err);
             Alert.alert('Error', err.message || 'Failed to scan blueprint');
         } finally {
             setLoading(false);
+        }
+    };
+
+    const handleSync = async () => {
+        if (!selectedFloor) return;
+        setSyncing(true);
+        try {
+            const res = await syncFromMiro(selectedFloor.id);
+            Alert.alert('Success', `Synchronized ${res.roomsCount} rooms and ${res.connectionsCount} connections from Miro!`);
+            onScan(); // Refresh main list
+            onClose();
+        } catch (err) {
+            console.error("[Miro Sync] Sync error:", err);
+            Alert.alert('Error', err.message || 'Failed to sync from Miro. Make sure you have scanned this floor first.');
+        } finally {
+            setSyncing(false);
         }
     };
 
@@ -795,7 +818,7 @@ function BlueprintScanModal({ visible, onClose, onScan, buildings }) {
 
                     <ScrollView showsVerticalScrollIndicator={false}>
                         <Text className="text-sm text-txtMuted mb-6 italic">
-                            Upload a floor plan and Gemini will automatically detect rooms and connections for you.
+                            Upload a floor plan and Gemini will create an editable diagram for you in Miro.
                         </Text>
 
                         {/* Building Selector */}
@@ -865,6 +888,15 @@ function BlueprintScanModal({ visible, onClose, onScan, buildings }) {
                             </>
                         )}
 
+                        <View className="h-[1px] bg-cardBorder my-4" />
+
+                        <View className="flex-row items-center gap-2 mb-4">
+                            <Ionicons name="flash" size={16} color="#A855F7" />
+                            <Text className="text-sm font-bold text-purple-500 uppercase">
+                                Step 1: AI Analysis
+                            </Text>
+                        </View>
+
                         <Text className="text-sm font-medium mb-2 text-txtMuted">
                             Blueprint Image *
                         </Text>
@@ -899,18 +931,62 @@ function BlueprintScanModal({ visible, onClose, onScan, buildings }) {
                             </View>
                         )}
 
-                        {/* Submit Button */}
                         <TouchableOpacity
                             onPress={handleScan}
                             disabled={loading || !image || !selectedFloor}
-                            className={`py-4 rounded-xl items-center mb-6 border ${loading || !image || !selectedFloor ? 'bg-card border-cardBorder' : 'bg-[#00D4AA] border-[#00D4AA]/50'}`}
+                            className={`py-4 rounded-xl items-center mb-6 border ${loading || !image || !selectedFloor ? 'bg-card border-cardBorder' : 'bg-purple-600 border-purple-500'}`}
                         >
                             {loading ? (
                                 <ActivityIndicator color="white" />
                             ) : (
-                                <Text className={`font-bold text-base ${loading || !image || !selectedFloor ? 'text-txtMuted' : 'text-black'}`}>
-                                    Start AI Analysis
-                                </Text>
+                                <View className="flex-row items-center gap-2">
+                                    <Ionicons name="cloud-upload-outline" size={20} color="white" />
+                                    <Text className="font-bold text-base text-white">
+                                        Send to Miro
+                                    </Text>
+                                </View>
+                            )}
+                        </TouchableOpacity>
+
+                        {miroUrl && (
+                            <TouchableOpacity
+                                onPress={() => {
+                                    if (Platform.OS === 'web') window.open(miroUrl, '_blank');
+                                }}
+                                className="py-4 bg-blue-600 rounded-xl items-center mb-6 flex-row justify-center gap-2"
+                            >
+                                <Ionicons name="open-outline" size={20} color="white" />
+                                <Text className="text-white font-bold text-base">Open Miro Board</Text>
+                            </TouchableOpacity>
+                        )}
+
+                        <View className="h-[1px] bg-cardBorder my-2" />
+
+                        <View className="flex-row items-center gap-2 mb-4 mt-2">
+                            <Ionicons name="sync" size={16} color="#00D4AA" />
+                            <Text className="text-sm font-bold text-[#00D4AA] uppercase">
+                                Step 2: Finalize
+                            </Text>
+                        </View>
+
+                        <Text className="text-xs text-txtMuted mb-4">
+                            Done editing in Miro? Click below to save the changes back to your app database.
+                        </Text>
+
+                        <TouchableOpacity
+                            onPress={handleSync}
+                            disabled={syncing || !selectedFloor}
+                            className={`py-4 rounded-xl items-center mb-10 border ${syncing || !selectedFloor ? 'bg-card border-cardBorder' : 'bg-[#00D4AA] border-[#00D4AA]/50'}`}
+                        >
+                            {syncing ? (
+                                <ActivityIndicator color="black" />
+                            ) : (
+                                <View className="flex-row items-center gap-2">
+                                    <Ionicons name="download-outline" size={20} color={syncing || !selectedFloor ? '#9CA3AF' : 'black'} />
+                                    <Text className="font-bold text-base" style={{ color: syncing || !selectedFloor ? '#9CA3AF' : 'black' }}>
+                                        Sync from Miro
+                                    </Text>
+                                </View>
                             )}
                         </TouchableOpacity>
                     </ScrollView>

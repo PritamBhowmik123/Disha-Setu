@@ -6,6 +6,7 @@ const { query, getClient } = require('../config/db');
 const indoorNavService = require('../services/indoor-navigation.service');
 const incidentService = require('../services/incident-routing.service');
 const { GoogleGenerativeAI } = require('@google/generative-ai');
+const miroService = require('../services/miro.service');
 
 // ═══════════════════════════════════════════════════════════
 // DASHBOARD OVERVIEW
@@ -476,21 +477,11 @@ const scanBlueprint = async (req, res, next) => {
     try {
         console.log("[Blueprint Scan] Request received");
         const { building_id, floor_id } = req.body;
-        console.log(`[Blueprint Scan] Floor ID: ${floor_id}`);
         
-        if (!floor_id) {
-            console.error("[Blueprint Scan] Missing floor_id");
-            return res.status(400).json({ error: 'floor_id is required' });
-        }
-        
-        if (!req.file) {
-            console.error("[Blueprint Scan] No file received");
-            return res.status(400).json({ error: 'Blueprint image is required' });
+        if (!floor_id || !req.file) {
+            return res.status(400).json({ error: 'floor_id and floor plan image are required' });
         }
 
-        console.log(`[Blueprint Scan] File size: ${req.file.size} bytes`);
-
-        // Convert file buffer to required Gemini inlineData format
         const image = {
             inlineData: {
                 data: req.file.buffer.toString("base64"),
@@ -511,33 +502,20 @@ Respond ONLY with a valid JSON block structured EXACTLY like this:
 }
 Make sure "type" is strictly one of: entrance, exit, elevator, stairs, escalator, office, department, classroom, lab, auditorium, restroom, cafeteria, shop, atm, parking, emergency, medical, reception, waiting, pharmacy, laboratory, ward, icu, surgery, radiology, corridor, room. Defaults to "room".`;
 
-        console.log("[Blueprint Scan] Initializing Gemini with Multi-Model Fallback...");
         const apiKey = process.env.GEMINI_API_KEY;
-        if (!apiKey) {
-            console.error("[Blueprint Scan] GEMINI_API_KEY is missing from .env");
-            return res.status(500).json({ error: 'Gemini API key is not configured on the server. Please check .env file.' });
-        }
+        if (!apiKey) return res.status(500).json({ error: 'Gemini API key not configured' });
         
         const genAI = new GoogleGenerativeAI(apiKey);
-        const modelsToTry = [
-            'gemini-2.0-flash', 
-            'gemini-2.5-flash', 
-            'gemini-3.1-flash',
-            'gemini-1.5-flash', 
-            'gemini-1.5-flash-latest', 
-            'gemini-1.5-pro'
-        ];
+        const modelsToTry = ['gemini-2.5-flash', 'gemini-3.1-flash', 'gemini-2.0-flash', 'gemini-1.5-flash'];
         
         let result = null;
         let lastError = null;
-        let modelUsed = "";
 
         for (const modelName of modelsToTry) {
             try {
                 console.log(`[Blueprint Scan] Attempting with model: ${modelName}...`);
                 const model = genAI.getGenerativeModel({ model: modelName });
                 result = await model.generateContent([prompt, image]);
-                modelUsed = modelName;
                 console.log(`[Blueprint Scan] Success using ${modelName}!`);
                 break; 
             } catch (err) {
@@ -546,71 +524,90 @@ Make sure "type" is strictly one of: entrance, exit, elevator, stairs, escalator
             }
         }
 
-        if (!result) {
-            console.error("[Blueprint Scan] All Gemini models failed.");
-            throw lastError || new Error("All models failed.");
-        }
+        if (!result) throw lastError || new Error("All Gemini models failed");
 
         const responseText = result.response.text();
         const jsonString = responseText.replace(/```json/g, "").replace(/```/g, "").trim();
         const blueprintData = JSON.parse(jsonString);
-        console.log(`[Blueprint Scan] Parsed ${blueprintData.rooms.length} rooms`);
+
+        // 1. Get Floor details for naming
+        const floorRes = await query(`
+            SELECT f.name as floor_name, b.name as building_name 
+            FROM floors f 
+            JOIN buildings b ON f.building_id = b.id 
+            WHERE f.id = $1`, 
+            [floor_id]
+        );
+        const name = floorRes.rows[0] ? `${floorRes.rows[0].building_name} - ${floorRes.rows[0].floor_name}` : 'New Analysis';
+
+        // 2. Create or Get Miro Board
+        let boardId;
+        const currentFloor = await query(`SELECT miro_board_id FROM floors WHERE id = $1`, [floor_id]);
+        if (currentFloor.rows[0]?.miro_board_id) {
+            boardId = currentFloor.rows[0].miro_board_id;
+        } else {
+            boardId = await miroService.createBoard(name);
+            await query(`UPDATE floors SET miro_board_id = $1 WHERE id = $2`, [boardId, floor_id]);
+        }
+
+        // 3. Populate Miro Board
+        const { boardUrl } = await miroService.populateBoard(boardId, blueprintData);
+        res.status(200).json({ message: 'Blueprint analyzed and sent to Miro', miroBoardUrl: boardUrl });
+
+    } catch (err) {
+        console.error("Blueprint Scan Error:", err);
+        next(err);
+    }
+};
+
+const syncFromMiro = async (req, res, next) => {
+    try {
+        const { floor_id } = req.body;
+        if (!floor_id) return res.status(400).json({ error: 'floor_id is required' });
+
+        const floorResult = await query(`SELECT miro_board_id FROM floors WHERE id = $1`, [floor_id]);
+        const boardId = floorResult.rows[0]?.miro_board_id;
+        if (!boardId) return res.status(404).json({ error: 'No Miro board found for this floor' });
+
+        console.log(`[Miro Sync] Syncing from board: ${boardId}`);
+        const graph = await miroService.getBoardGraph(boardId);
         
-        // Transaction to insert
         const client = await getClient();
         try {
             await client.query('BEGIN');
-            
-            // We need a map to store the new UUIDs of inserted rooms
-            const roomIdMap = {}; 
-            
-            // Allowed types from the enum (for validation)
-            const allowedTypes = [
-                'entrance', 'exit', 'elevator', 'stairs', 'escalator',
-                'office', 'department', 'classroom', 'lab', 'auditorium', 
-                'restroom', 'cafeteria', 'shop', 'atm', 'parking', 
-                'emergency', 'medical', 'reception', 'waiting', 
-                'pharmacy', 'laboratory', 'ward', 'icu', 'surgery', 
-                'radiology', 'corridor', 'room', 'other'
-            ];
-            
-            for (const room of blueprintData.rooms) {
-                // Ensure the type is valid for the PostgreSQL ENUM
-                const validatedType = allowedTypes.includes(room.type?.toLowerCase()) 
-                    ? room.type.toLowerCase() 
-                    : 'room';
+            // Delete old rooms for this floor (cascades to connections)
+            await client.query(`DELETE FROM rooms WHERE floor_id = $1`, [floor_id]);
 
-                const insertRes = await client.query(
-                    `INSERT INTO rooms (floor_id, name, type)
-                     VALUES ($1, $2, $3)
-                     RETURNING id`,
-                    [floor_id, room.name || 'Unnamed Room', validatedType]
+            const miroToDbId = {};
+            const allowedTypes = ['entrance', 'exit', 'elevator', 'stairs', 'escalator', 'office', 'department', 'classroom', 'lab', 'auditorium', 'restroom', 'cafeteria', 'shop', 'atm', 'parking', 'emergency', 'medical', 'reception', 'waiting', 'pharmacy', 'laboratory', 'ward', 'icu', 'surgery', 'radiology', 'corridor', 'room', 'other'];
+
+            for (const room of graph.rooms) {
+                const validatedType = allowedTypes.includes(room.type?.toLowerCase()) ? room.type.toLowerCase() : 'room';
+                const roomRes = await client.query(
+                    `INSERT INTO rooms (floor_id, name, type) VALUES ($1, $2, $3) RETURNING id`, 
+                    [floor_id, room.name, validatedType]
                 );
-                roomIdMap[room.id] = insertRes.rows[0].id;
+                miroToDbId[room.id] = roomRes.rows[0].id;
             }
-            
-            let connectionsAdded = 0;
-            if (blueprintData.connections && Array.isArray(blueprintData.connections)) {
-                for (const conn of blueprintData.connections) {
-                    const fromId = roomIdMap[conn.source];
-                    const toId = roomIdMap[conn.target];
-                    
-                    if (fromId && toId && fromId !== toId) {
-                        await client.query(
-                            `INSERT INTO connections (from_room, to_room, distance, is_bidirectional, is_accessible)
-                             VALUES ($1, $2, $3, true, true)`,
-                            [fromId, toId, conn.distance || 5]
-                        );
-                        connectionsAdded++;
-                    }
+
+            for (const conn of graph.connections) {
+                const fromId = miroToDbId[conn.source];
+                const toId = miroToDbId[conn.target];
+                if (fromId && toId) {
+                    await client.query(
+                        `INSERT INTO connections (from_room, to_room, distance, is_bidirectional, is_accessible) 
+                         VALUES ($1, $2, $3, true, true)`, 
+                        [fromId, toId, conn.distance || 5]
+                    );
                 }
             }
-            
+
+            await client.query(`UPDATE floors SET last_miro_sync = NOW() WHERE id = $1`, [floor_id]);
             await client.query('COMMIT');
             console.log("[Blueprint Scan] Database transaction committed successfully");
-            res.status(201).json({ 
+            res.status(200).json({ 
                 success: true, 
-                message: `Successfully scanned blueprint: added ${blueprintData.rooms.length} rooms and ${connectionsAdded} connections.`
+                message: `Successfully synced from Miro: added ${graph.rooms.length} rooms and ${graph.connections.length} connections.`
             });
             
         } catch (dbErr) {
@@ -818,6 +815,7 @@ module.exports = {
     addBuilding,
     addFloor,
     scanBlueprint,
+    syncFromMiro,
     
     // User Management
     getAllUsers,

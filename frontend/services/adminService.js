@@ -107,6 +107,13 @@ export const scanBlueprint = async (formData) => {
     return await apiUpload('/admin/navigation/scan-blueprint', formData);
 };
 
+export const syncFromMiro = async (floorId) => {
+    return await apiFetch('/admin/navigation/sync-miro', {
+        method: 'POST',
+        body: JSON.stringify({ floor_id: floorId })
+    });
+};
+
 /**
  * Admin Incident Management
  */
