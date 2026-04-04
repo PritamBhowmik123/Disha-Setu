@@ -8,10 +8,12 @@ import { useRouter } from 'expo-router';
 import { useState, useEffect, useCallback } from 'react';
 import { useColorScheme } from '../../hooks/use-color-scheme';
 import { useAuth } from '../../context/AuthContext';
-import { getNavigationData, deleteRoom, deleteConnection, addRoom, addConnection, getAllIncidents, createIncident, toggleIncident, deleteIncident } from '../../services/adminService';
+import { getNavigationData, deleteRoom, deleteConnection, addRoom, addConnection, getAllIncidents, createIncident, toggleIncident, deleteIncident, scanBlueprint } from '../../services/adminService';
 import { getBuildings, fetchBuildingFloors } from '../../services/indoorNavigationService';
 import { apiFetch } from '../../services/api';
 import Ionicons from '@expo/vector-icons/Ionicons';
+import * as ImagePicker from 'expo-image-picker';
+import { Platform } from 'react-native';
 
 // Room type options
 const ROOM_TYPES = [
@@ -671,11 +673,258 @@ function AddConnectionModal({ visible, onClose, onAdd, rooms }) {
     );
 }
 
+// Blueprint Scan Modal
+function BlueprintScanModal({ visible, onClose, onScan, buildings }) {
+    const { isDark } = useColorScheme();
+    const iconDim = isDark ? '#9CA3AF' : '#6B7280';
+    const [loading, setLoading] = useState(false);
+    const [floors, setFloors] = useState([]);
+    const [selectedBuilding, setSelectedBuilding] = useState(null);
+    const [selectedFloor, setSelectedFloor] = useState(null);
+    const [showBuildingPicker, setShowBuildingPicker] = useState(false);
+    const [showFloorPicker, setShowFloorPicker] = useState(false);
+    const [image, setImage] = useState(null);
+
+    useEffect(() => {
+        if (selectedBuilding) {
+            loadFloors(selectedBuilding.id);
+        }
+    }, [selectedBuilding]);
+
+    const loadFloors = async (buildingId) => {
+        try {
+            const floorsData = await fetchBuildingFloors(buildingId);
+            setFloors(Array.isArray(floorsData) ? floorsData : floorsData.floors || []);
+        } catch (err) {
+            console.error('Failed to load floors:', err);
+            Alert.alert('Error', 'Failed to load floors');
+        }
+    };
+
+    const pickImage = async () => {
+        const result = await ImagePicker.launchImageLibraryAsync({
+            mediaTypes: ImagePicker.MediaTypeOptions.Images,
+            allowsEditing: true,
+            quality: 1,
+        });
+
+        if (!result.canceled) {
+            setImage(result.assets[0]);
+        }
+    };
+
+    const takePhoto = async () => {
+        const { status } = await ImagePicker.requestCameraPermissionsAsync();
+        if (status !== 'granted') {
+            Alert.alert('Permission Denied', 'Camera permission is required to take a photo of the blueprint.');
+            return;
+        }
+
+        const result = await ImagePicker.launchCameraAsync({
+            allowsEditing: true,
+            quality: 1,
+        });
+
+        if (!result.canceled) {
+            setImage(result.assets[0]);
+        }
+    };
+
+    const handleScan = async () => {
+        console.log("[Blueprint Scan] Button pressed");
+        if (!selectedFloor) {
+            Alert.alert('Error', 'Please select a floor');
+            return;
+        }
+        if (!image) {
+            Alert.alert('Error', 'Please select or take an image of the blueprint');
+            return;
+        }
+
+        console.log("[Blueprint Scan] Starting upload process for floor:", selectedFloor.id);
+        setLoading(true);
+        try {
+            const formData = new FormData();
+            formData.append('floor_id', selectedFloor.id);
+
+            if (Platform.OS === 'web') {
+                console.log("[Blueprint Scan] Web platform detected. Fetching blob...");
+                const response = await fetch(image.uri);
+                const blob = await response.blob();
+                formData.append('blueprint', blob, 'blueprint.jpg');
+            } else {
+                console.log("[Blueprint Scan] Native platform detected.");
+                // @ts-ignore
+                formData.append('blueprint', {
+                    uri: image.uri,
+                    name: 'blueprint.jpg',
+                    type: 'image/jpeg',
+                });
+            }
+
+            console.log("[Blueprint Scan] Calling scanBlueprint API...");
+            const res = await scanBlueprint(formData);
+            console.log("[Blueprint Scan] Scan success:", res);
+            
+            Alert.alert('Success', 'Blueprint scanned and processed successfully!');
+            setImage(null);
+            setSelectedBuilding(null);
+            setSelectedFloor(null);
+            onScan();
+            onClose();
+        } catch (err) {
+            console.error("[Blueprint Scan] Scan error:", err);
+            Alert.alert('Error', err.message || 'Failed to scan blueprint');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    return (
+        <Modal visible={visible} animationType="slide" transparent>
+            <View className="flex-1 bg-black/50 justify-end">
+                <View className="bg-main rounded-t-3xl p-6 max-h-[90%] border-t border-cardBorder">
+                    <View className="flex-row items-center justify-between mb-6">
+                        <Text className="text-2xl font-bold text-txt">
+                            AI Blueprint Scanner
+                        </Text>
+                        <TouchableOpacity onPress={onClose}>
+                            <Ionicons name="close" size={28} color={iconDim} />
+                        </TouchableOpacity>
+                    </View>
+
+                    <ScrollView showsVerticalScrollIndicator={false}>
+                        <Text className="text-sm text-txtMuted mb-6 italic">
+                            Upload a floor plan and Gemini will automatically detect rooms and connections for you.
+                        </Text>
+
+                        {/* Building Selector */}
+                        <Text className="text-sm font-medium mb-2 text-txtMuted">
+                            Building *
+                        </Text>
+                        <TouchableOpacity
+                            onPress={() => setShowBuildingPicker(!showBuildingPicker)}
+                            className="p-4 rounded-xl mb-4 bg-card border border-cardBorder"
+                        >
+                            <Text className={selectedBuilding ? 'text-txt' : 'text-txtMuted'}>
+                                {selectedBuilding ? selectedBuilding.name : 'Select a building'}
+                            </Text>
+                        </TouchableOpacity>
+                        {showBuildingPicker && (
+                            <View className="mb-4" style={{ maxHeight: 200 }}>
+                                <ScrollView className="rounded-xl overflow-hidden bg-surface border border-cardBorder" nestedScrollEnabled={true}>
+                                    {buildings.map(building => (
+                                        <TouchableOpacity
+                                            key={building.id}
+                                            onPress={() => {
+                                                setSelectedBuilding(building);
+                                                setSelectedFloor(null);
+                                                setShowBuildingPicker(false);
+                                            }}
+                                            className="p-3 border-b border-cardBorder"
+                                        >
+                                            <Text className="text-txt">{building.name}</Text>
+                                        </TouchableOpacity>
+                                    ))}
+                                </ScrollView>
+                            </View>
+                        )}
+
+                        {/* Floor Selector */}
+                        {selectedBuilding && (
+                            <>
+                                <Text className="text-sm font-medium mb-2 text-txtMuted">
+                                    Floor *
+                                </Text>
+                                <TouchableOpacity
+                                    onPress={() => setShowFloorPicker(!showFloorPicker)}
+                                    className="p-4 rounded-xl mb-4 bg-card border border-cardBorder"
+                                >
+                                    <Text className={selectedFloor ? 'text-txt' : 'text-txtMuted'}>
+                                        {selectedFloor ? `Floor ${selectedFloor.floor_number} - ${selectedFloor.name}` : 'Select a floor'}
+                                    </Text>
+                                </TouchableOpacity>
+                                {showFloorPicker && (
+                                    <View className="mb-4" style={{ maxHeight: 200 }}>
+                                        <ScrollView className="rounded-xl overflow-hidden bg-surface border border-cardBorder" nestedScrollEnabled={true}>
+                                            {floors.map(floor => (
+                                                <TouchableOpacity
+                                                    key={floor.id}
+                                                    onPress={() => {
+                                                        setSelectedFloor(floor);
+                                                        setShowFloorPicker(false);
+                                                    }}
+                                                    className="p-3 border-b border-cardBorder"
+                                                >
+                                                    <Text className="text-txt">Floor {floor.floor_number} - {floor.name}</Text>
+                                                </TouchableOpacity>
+                                            ))}
+                                        </ScrollView>
+                                    </View>
+                                )}
+                            </>
+                        )}
+
+                        <Text className="text-sm font-medium mb-2 text-txtMuted">
+                            Blueprint Image *
+                        </Text>
+                        <View className="flex-row gap-2 mb-4">
+                            <TouchableOpacity
+                                onPress={pickImage}
+                                className="flex-1 bg-card border border-cardBorder p-4 rounded-xl flex-row items-center justify-center gap-2"
+                            >
+                                <Ionicons name="images-outline" size={20} color="#00D4AA" />
+                                <Text className="text-txt font-medium">Gallery</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                                onPress={takePhoto}
+                                className="flex-1 bg-card border border-cardBorder p-4 rounded-xl flex-row items-center justify-center gap-2"
+                            >
+                                <Ionicons name="camera-outline" size={20} color="#00D4AA" />
+                                <Text className="text-txt font-medium">Camera</Text>
+                            </TouchableOpacity>
+                        </View>
+
+                        {image && (
+                            <View className="p-4 bg-[#00D4AA]/10 border border-[#00D4AA]/30 rounded-xl mb-6">
+                                <View className="flex-row items-center justify-between">
+                                    <View className="flex-row items-center gap-3">
+                                        <Ionicons name="image" size={24} color="#00D4AA" />
+                                        <Text className="text-txt font-medium">Image selected</Text>
+                                    </View>
+                                    <TouchableOpacity onPress={() => setImage(null)}>
+                                        <Ionicons name="trash-outline" size={20} color="#EF4444" />
+                                    </TouchableOpacity>
+                                </View>
+                            </View>
+                        )}
+
+                        {/* Submit Button */}
+                        <TouchableOpacity
+                            onPress={handleScan}
+                            disabled={loading || !image || !selectedFloor}
+                            className={`py-4 rounded-xl items-center mb-6 border ${loading || !image || !selectedFloor ? 'bg-card border-cardBorder' : 'bg-[#00D4AA] border-[#00D4AA]/50'}`}
+                        >
+                            {loading ? (
+                                <ActivityIndicator color="white" />
+                            ) : (
+                                <Text className={`font-bold text-base ${loading || !image || !selectedFloor ? 'text-txtMuted' : 'text-black'}`}>
+                                    Start AI Analysis
+                                </Text>
+                            )}
+                        </TouchableOpacity>
+                    </ScrollView>
+                </View>
+            </View>
+        </Modal>
+    );
+}
+
 export default function AdminNavigationManagement() {
     const router = useRouter();
     const { isDark } = useColorScheme();
     const iconDim = isDark ? '#9CA3AF' : '#6B7280';
-    const { user } = useAuth();
+    const { user, loading: authLoading } = useAuth();
 
     const [rooms, setRooms] = useState([]);
     const [connections, setConnections] = useState([]);
@@ -687,6 +936,7 @@ export default function AdminNavigationManagement() {
     const [activeTab, setActiveTab] = useState('rooms');
     const [showAddRoomModal, setShowAddRoomModal] = useState(false);
     const [showAddConnectionModal, setShowAddConnectionModal] = useState(false);
+    const [showBlueprintScanModal, setShowBlueprintScanModal] = useState(false);
 
     // --- Missing Incident State Variables & Constants ---
     const INCIDENT_TYPES = ['lift_down', 'room_closed', 'blocked_path', 'maintenance'];
@@ -786,13 +1036,15 @@ export default function AdminNavigationManagement() {
     }, [selectedBuilding]);
 
     useEffect(() => {
+        if (authLoading) return;
+
         if (user?.role !== 'admin') {
             router.replace('/');
             return;
         }
 
         loadData();
-    }, [user, selectedBuilding]);
+    }, [user, authLoading, selectedBuilding]);
 
     const onRefresh = () => {
         setRefreshing(true);
@@ -917,14 +1169,24 @@ export default function AdminNavigationManagement() {
             </View>
 
             {/* Add Button in Header */}
-            <View className="px-4 mb-3">
+            <View className="px-4 mb-3 flex-row gap-2">
                 <TouchableOpacity
                     onPress={() => activeTab === 'rooms' ? setShowAddRoomModal(true) : setShowAddConnectionModal(true)}
-                    className="bg-[#00D4AA]/20 py-3 px-4 rounded-xl flex-row items-center justify-center gap-2 border border-[#00D4AA]/30"
+                    className="flex-1 bg-[#00D4AA]/10 py-3 px-4 rounded-xl flex-row items-center justify-center gap-2 border border-[#00D4AA]/30"
                 >
                     <Ionicons name="add-circle" size={20} color="#00D4AA" />
                     <Text className="text-[#00D4AA] font-bold">
                         Add {activeTab === 'rooms' ? 'Room' : 'Connection'}
+                    </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                    onPress={() => setShowBlueprintScanModal(true)}
+                    className="flex-1 bg-purple-500/10 py-3 px-4 rounded-xl flex-row items-center justify-center gap-2 border border-purple-500/30"
+                >
+                    <Ionicons name="scan" size={20} color="#A855F7" />
+                    <Text className="text-purple-500 font-bold">
+                        AI Scan
                     </Text>
                 </TouchableOpacity>
             </View>
@@ -1117,6 +1379,13 @@ export default function AdminNavigationManagement() {
                 onClose={() => setShowAddConnectionModal(false)}
                 onAdd={loadData}
                 rooms={rooms}
+            />
+
+            <BlueprintScanModal
+                visible={showBlueprintScanModal}
+                onClose={() => setShowBlueprintScanModal(false)}
+                onScan={loadData}
+                buildings={buildings}
             />
         </SafeAreaView>
     );

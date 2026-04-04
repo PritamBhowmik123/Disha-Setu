@@ -96,6 +96,7 @@ export const apiFetch = async (path, options = {}) => {
  */
 export const apiUpload = async (path, formData) => {
     try {
+        console.log(`[API Upload] Starting to: ${path}`);
         const token = await AsyncStorage.getItem('auth_token').catch(() => null);
 
         const response = await fetch(`${BASE_URL}${path}`, {
@@ -104,18 +105,23 @@ export const apiUpload = async (path, formData) => {
             body: formData,
         });
 
+        console.log(`[API Upload] ${path} Status: ${response.status}`);
         const textResponse = await response.text();
         let data;
         try {
             data = textResponse ? JSON.parse(textResponse) : {};
         } catch (e) {
+            console.error(`[API Upload] JSON parse error: ${textResponse}`);
             data = { error: textResponse || `Upload failed: ${response.status}` };
         }
 
-        if (!response.ok) throw new Error(data.error || `Upload failed: ${response.status}`);
+        if (!response.ok) {
+            console.error(`[API Upload] Error response:`, data);
+            throw new Error(data.error || `Upload failed: ${response.status}`);
+        }
         return data;
     } catch (error) {
-        console.error(`[API Upload] ${path} error:`, error.message);
+        console.error(`[API Upload] ${path} Final Catch error:`, error.message);
         throw error;
     }
 };

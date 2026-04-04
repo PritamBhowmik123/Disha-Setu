@@ -5,6 +5,7 @@
 const router = require('express').Router();
 const { requireAdmin } = require('../middleware/admin.middleware');
 const adminController = require('../controllers/admin.controller');
+const upload = require('../middleware/upload.middleware');
 
 // ═══════════════════════════════════════════════════════════
 // All routes require admin role
@@ -37,6 +38,9 @@ router.delete('/navigation/connections/:id', adminController.deleteConnection);
 // Buildings & Floors
 router.post('/navigation/buildings', adminController.addBuilding);
 router.post('/navigation/floors', adminController.addFloor);
+
+// Blueprint Scan
+router.post('/navigation/scan-blueprint', upload.single('blueprint'), adminController.scanBlueprint);
 
 // ── User Management ────────────────────────────────────────
 router.get('/users', adminController.getAllUsers);

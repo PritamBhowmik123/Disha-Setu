@@ -2,9 +2,10 @@
  * src/controllers/admin.controller.js
  * Admin dashboard operations
  */
-const { query } = require('../config/db');
+const { query, getClient } = require('../config/db');
 const indoorNavService = require('../services/indoor-navigation.service');
 const incidentService = require('../services/incident-routing.service');
+const { GoogleGenerativeAI } = require('@google/generative-ai');
 
 // ═══════════════════════════════════════════════════════════
 // DASHBOARD OVERVIEW
@@ -468,6 +469,173 @@ const addFloor = async (req, res, next) => {
 };
 
 // ═══════════════════════════════════════════════════════════
+// BLUEPRINT AI SCANNING
+// ═══════════════════════════════════════════════════════════
+
+const scanBlueprint = async (req, res, next) => {
+    try {
+        console.log("[Blueprint Scan] Request received");
+        const { building_id, floor_id } = req.body;
+        console.log(`[Blueprint Scan] Floor ID: ${floor_id}`);
+        
+        if (!floor_id) {
+            console.error("[Blueprint Scan] Missing floor_id");
+            return res.status(400).json({ error: 'floor_id is required' });
+        }
+        
+        if (!req.file) {
+            console.error("[Blueprint Scan] No file received");
+            return res.status(400).json({ error: 'Blueprint image is required' });
+        }
+
+        console.log(`[Blueprint Scan] File size: ${req.file.size} bytes`);
+
+        // Convert file buffer to required Gemini inlineData format
+        const image = {
+            inlineData: {
+                data: req.file.buffer.toString("base64"),
+                mimeType: req.file.mimetype,
+            },
+        };
+
+        const prompt = `You are an expert spatial analyst. Analyze this floor plan and extract the layout into a JSON format representing a graph of rooms and their connections. 
+Estimate distances between connected rooms based on standard door frames or walkways if a scale isn't clear.
+Respond ONLY with a valid JSON block structured EXACTLY like this:
+{
+  "rooms": [
+    { "id": "room_1", "name": "Main Entrance", "type": "entrance" }
+  ],
+  "connections": [
+    { "source": "room_1", "target": "room_2", "distance": 5 }
+  ]
+}
+Make sure "type" is strictly one of: entrance, exit, elevator, stairs, escalator, office, department, classroom, lab, auditorium, restroom, cafeteria, shop, atm, parking, emergency, medical, reception, waiting, pharmacy, laboratory, ward, icu, surgery, radiology, corridor, room. Defaults to "room".`;
+
+        console.log("[Blueprint Scan] Initializing Gemini with Multi-Model Fallback...");
+        const apiKey = process.env.GEMINI_API_KEY;
+        if (!apiKey) {
+            console.error("[Blueprint Scan] GEMINI_API_KEY is missing from .env");
+            return res.status(500).json({ error: 'Gemini API key is not configured on the server. Please check .env file.' });
+        }
+        
+        const genAI = new GoogleGenerativeAI(apiKey);
+        const modelsToTry = [
+            'gemini-2.0-flash', 
+            'gemini-2.5-flash', 
+            'gemini-3.1-flash',
+            'gemini-1.5-flash', 
+            'gemini-1.5-flash-latest', 
+            'gemini-1.5-pro'
+        ];
+        
+        let result = null;
+        let lastError = null;
+        let modelUsed = "";
+
+        for (const modelName of modelsToTry) {
+            try {
+                console.log(`[Blueprint Scan] Attempting with model: ${modelName}...`);
+                const model = genAI.getGenerativeModel({ model: modelName });
+                result = await model.generateContent([prompt, image]);
+                modelUsed = modelName;
+                console.log(`[Blueprint Scan] Success using ${modelName}!`);
+                break; 
+            } catch (err) {
+                console.warn(`[Blueprint Scan] Model ${modelName} failed:`, err.message);
+                lastError = err;
+            }
+        }
+
+        if (!result) {
+            console.error("[Blueprint Scan] All Gemini models failed.");
+            throw lastError || new Error("All models failed.");
+        }
+
+        const responseText = result.response.text();
+        const jsonString = responseText.replace(/```json/g, "").replace(/```/g, "").trim();
+        const blueprintData = JSON.parse(jsonString);
+        console.log(`[Blueprint Scan] Parsed ${blueprintData.rooms.length} rooms`);
+        
+        // Transaction to insert
+        const client = await getClient();
+        try {
+            await client.query('BEGIN');
+            
+            // We need a map to store the new UUIDs of inserted rooms
+            const roomIdMap = {}; 
+            
+            // Allowed types from the enum (for validation)
+            const allowedTypes = [
+                'entrance', 'exit', 'elevator', 'stairs', 'escalator',
+                'office', 'department', 'classroom', 'lab', 'auditorium', 
+                'restroom', 'cafeteria', 'shop', 'atm', 'parking', 
+                'emergency', 'medical', 'reception', 'waiting', 
+                'pharmacy', 'laboratory', 'ward', 'icu', 'surgery', 
+                'radiology', 'corridor', 'room', 'other'
+            ];
+            
+            for (const room of blueprintData.rooms) {
+                // Ensure the type is valid for the PostgreSQL ENUM
+                const validatedType = allowedTypes.includes(room.type?.toLowerCase()) 
+                    ? room.type.toLowerCase() 
+                    : 'room';
+
+                const insertRes = await client.query(
+                    `INSERT INTO rooms (floor_id, name, type)
+                     VALUES ($1, $2, $3)
+                     RETURNING id`,
+                    [floor_id, room.name || 'Unnamed Room', validatedType]
+                );
+                roomIdMap[room.id] = insertRes.rows[0].id;
+            }
+            
+            let connectionsAdded = 0;
+            if (blueprintData.connections && Array.isArray(blueprintData.connections)) {
+                for (const conn of blueprintData.connections) {
+                    const fromId = roomIdMap[conn.source];
+                    const toId = roomIdMap[conn.target];
+                    
+                    if (fromId && toId && fromId !== toId) {
+                        await client.query(
+                            `INSERT INTO connections (from_room, to_room, distance, is_bidirectional, is_accessible)
+                             VALUES ($1, $2, $3, true, true)`,
+                            [fromId, toId, conn.distance || 5]
+                        );
+                        connectionsAdded++;
+                    }
+                }
+            }
+            
+            await client.query('COMMIT');
+            console.log("[Blueprint Scan] Database transaction committed successfully");
+            res.status(201).json({ 
+                success: true, 
+                message: `Successfully scanned blueprint: added ${blueprintData.rooms.length} rooms and ${connectionsAdded} connections.`
+            });
+            
+        } catch (dbErr) {
+            console.error("[Blueprint Scan] DB Transaction Error:", dbErr);
+            await client.query('ROLLBACK');
+            throw dbErr;
+        } finally {
+            client.release();
+        }
+        
+    } catch (err) {
+        console.error("Blueprint Scan Final Catch Error:", err);
+        
+        if (err.message && err.message.includes('404')) {
+            return res.status(404).json({ error: 'Gemini model not found. This can happen if your API key does not have access to gemini-1.5-flash in your region.' });
+        }
+
+        if (err instanceof SyntaxError) {
+            return res.status(400).json({ error: 'LLM returned malformed JSON.' });
+        }
+        next(err);
+    }
+};
+
+// ═══════════════════════════════════════════════════════════
 // USER MANAGEMENT
 // ═══════════════════════════════════════════════════════════
 
@@ -649,6 +817,7 @@ module.exports = {
     getNavigationData,
     addBuilding,
     addFloor,
+    scanBlueprint,
     
     // User Management
     getAllUsers,

@@ -2,7 +2,7 @@
  * services/adminService.js
  * Admin API client
  */
-import { apiFetch } from './api';
+import { apiFetch, apiUpload } from './api';
 
 /**
  * Dashboard Stats
@@ -101,6 +101,10 @@ export const addFloor = async (floorData) => {
         method: 'POST',
         body: JSON.stringify(floorData)
     });
+};
+
+export const scanBlueprint = async (formData) => {
+    return await apiUpload('/admin/navigation/scan-blueprint', formData);
 };
 
 /**
