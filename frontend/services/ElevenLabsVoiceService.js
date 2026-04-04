@@ -3,19 +3,36 @@
  *
  * Singleton audio service for Disha-Setu indoor navigation.
  *
- * Key guarantees:
- *  - Sentences ALWAYS play to completion before the next starts
- *  - cancel() is safe to call at any time, from any async context
- *  - speak() after cancel() always restarts properly regardless of internal state
- *  - Web uses native HTMLAudioElement for reliable onended callbacks
- *  - Native (iOS/Android) uses expo-av with file system cache
+ * Platform strategy:
+ *
+ *   WEB (Expo Web / browser):
+ *     Uses Web Audio API (AudioContext + AudioBufferSourceNode).
+ *     AudioBufferSourceNode.onended is bulletproof — fires exactly once,
+ *     only when the buffer fully plays. HTMLAudioElement was causing spurious
+ *     error/stalled events on Expo Web that cut sentences after 1-2 words.
+ *
+ *   ANDROID / iOS (React Native):
+ *     expo-av on Android requires a file:// or https:// URI — it does NOT
+ *     support data:// URIs (ExoPlayer limitation). Since expo-file-system is
+ *     not installed, we use expo-speech (the device TTS) which:
+ *       - Works perfectly on Android for all 9 supported languages
+ *       - Has no sentence cut-off issues (OS manages playback lifecycle)
+ *       - Supports Hindi, Bengali, Tamil etc. via BCP-47 language tags
+ *     When ElevenLabs key is present, audio is fetched → converted to a
+ *     blob:// URL using URL.createObjectURL (available in RN ≥ 0.69) and
+ *     played via expo-av. If that fails, falls back to expo-speech.
+ *
+ * Queue:
+ *   All items play one-at-a-time. Each waits for previous to fully finish.
+ *   Generation counter (_cancelGen) makes cancel() safe to call from any
+ *   async context — stale chains detect they're outdated and exit cleanly.
  */
 
 import * as Speech from 'expo-speech';
 import Constants from 'expo-constants';
 import { Platform } from 'react-native';
 
-// ─── ElevenLabs Configuration ────────────────────────────────────────────────
+// ─── Configuration ────────────────────────────────────────────────────────────
 
 const ELEVENLABS_API_KEY =
     Constants.expoConfig?.extra?.EXPO_PUBLIC_ELEVENLABS_API_KEY ||
@@ -25,42 +42,35 @@ const ELEVENLABS_API_KEY =
 const ELEVENLABS_BASE_URL = 'https://api.elevenlabs.io/v1';
 const ELEVENLABS_MODEL = 'eleven_multilingual_v2';
 
-/**
- * ElevenLabs voice IDs by language code.
- * All use eleven_multilingual_v2 — swap IDs here to change voices.
- */
 const VOICE_MAP = {
-    en: { voiceId: 'EXAVITQu4vr4xnSDxMaL', name: 'Sarah' },    // English (Indian)
-    hi: { voiceId: 'pFZP5JQG7iQjIQuC4Bku', name: 'Lily' },     // Hindi
-    bn: { voiceId: '21m00Tcm4TlvDq8ikWAM', name: 'Rachel' },    // Bengali
-    ta: { voiceId: '21m00Tcm4TlvDq8ikWAM', name: 'Rachel' },    // Tamil
-    te: { voiceId: '21m00Tcm4TlvDq8ikWAM', name: 'Rachel' },    // Telugu
-    mr: { voiceId: '21m00Tcm4TlvDq8ikWAM', name: 'Rachel' },    // Marathi
-    kn: { voiceId: '21m00Tcm4TlvDq8ikWAM', name: 'Rachel' },    // Kannada
-    pa: { voiceId: '21m00Tcm4TlvDq8ikWAM', name: 'Rachel' },    // Punjabi
-    ml: { voiceId: '21m00Tcm4TlvDq8ikWAM', name: 'Rachel' },    // Malayalam
+    en: { voiceId: 'EXAVITQu4vr4xnSDxMaL', name: 'Sarah' },
+    // Rachel handles Hindi-English code-switching reliably; Lily truncated audio mid-sentence
+    hi: { voiceId: '21m00Tcm4TlvDq8ikWAM', name: 'Rachel' },
+    bn: { voiceId: '21m00Tcm4TlvDq8ikWAM', name: 'Rachel' },
+    ta: { voiceId: '21m00Tcm4TlvDq8ikWAM', name: 'Rachel' },
+    te: { voiceId: '21m00Tcm4TlvDq8ikWAM', name: 'Rachel' },
+    mr: { voiceId: '21m00Tcm4TlvDq8ikWAM', name: 'Rachel' },
+    kn: { voiceId: '21m00Tcm4TlvDq8ikWAM', name: 'Rachel' },
+    pa: { voiceId: '21m00Tcm4TlvDq8ikWAM', name: 'Rachel' },
+    ml: { voiceId: '21m00Tcm4TlvDq8ikWAM', name: 'Rachel' },
 };
 
-// BCP-47 tags for expo-speech fallback
+// BCP-47 tags for expo-speech (device TTS) — works on Android natively
 const BCP47_TAGS = {
     en: 'en-IN', hi: 'hi-IN', bn: 'bn-IN', ta: 'ta-IN',
     te: 'te-IN', mr: 'mr-IN', kn: 'kn-IN', pa: 'pa-IN', ml: 'ml-IN',
 };
 
-// ─── LRU Cache (stores Blobs — more efficient than base64 strings) ────────────
+// ─── LRU Cache ────────────────────────────────────────────────────────────────
 
 const LRU_MAX = 50;
 
 class LRUCache {
-    constructor(max) {
-        this._max = max;
-        this._map = new Map();
-    }
+    constructor(max) { this._max = max; this._map = new Map(); }
     get(key) {
         if (!this._map.has(key)) return null;
         const v = this._map.get(key);
-        this._map.delete(key);
-        this._map.set(key, v);
+        this._map.delete(key); this._map.set(key, v);
         return v;
     }
     set(key, value) {
@@ -72,123 +82,132 @@ class LRUCache {
     clear() { this._map.clear(); }
 }
 
-// ─── Singleton Service ────────────────────────────────────────────────────────
+// ─── Singleton ────────────────────────────────────────────────────────────────
 
 const ElevenLabsVoiceService = (() => {
-    // ── State ─────────────────────────────────────────────────────────────────
-    let _queue = [];           // Array<{ text, lang, cacheKey }>
-    let _state = 'idle';       // 'idle' | 'fetching' | 'playing'
-    let _processing = false;   // is _processQueue running?
-    let _cancelGen = 0;        // incremented on every cancel — stale closures detect it
+    let _queue = [];
+    let _state = 'idle';
+    let _processing = false;
+    let _cancelGen = 0;
     const _cache = new LRUCache(LRU_MAX);
     const _listeners = new Set();
 
-    // Web-only: reference to HTMLAudioElement so we can stop it
-    let _webAudio = null;
-    // Native-only: expo-av Sound reference
+    // Web Audio API (browser only)
+    let _audioCtx = null;
+    let _audioSource = null;
+
+    // Native expo-av
     let _avSound = null;
 
     // ── Helpers ───────────────────────────────────────────────────────────────
 
-    function _setState(s) {
-        _state = s;
-        _listeners.forEach(fn => fn(s));
-    }
+    function _setState(s) { _state = s; _listeners.forEach(fn => fn(s)); }
+    function _cacheKey(text, lang) { return `${lang}::${text}`; }
 
-    function _cacheKey(text, lang) {
-        return `${lang}::${text}`;
-    }
+    // ── Fetch from ElevenLabs ─────────────────────────────────────────────────
 
-    // ── Fetch from ElevenLabs → Blob ──────────────────────────────────────────
-
-    async function _fetchBlob(text, lang) {
+    async function _fetchAudioBuffer(text, lang) {
         const voice = VOICE_MAP[lang] || VOICE_MAP['en'];
-        const url = `${ELEVENLABS_BASE_URL}/text-to-speech/${voice.voiceId}`;
-
-        const response = await fetch(url, {
-            method: 'POST',
-            headers: {
-                'Accept': 'audio/mpeg',
-                'Content-Type': 'application/json',
-                'xi-api-key': ELEVENLABS_API_KEY,
-            },
-            body: JSON.stringify({
-                text,
-                model_id: ELEVENLABS_MODEL,
-                voice_settings: {
-                    stability: 0.5,
-                    similarity_boost: 0.75,
-                    style: 0.0,
-                    use_speaker_boost: true,
+        const response = await fetch(
+            `${ELEVENLABS_BASE_URL}/text-to-speech/${voice.voiceId}`,
+            {
+                method: 'POST',
+                headers: {
+                    'Accept': 'audio/mpeg',
+                    'Content-Type': 'application/json',
+                    'xi-api-key': ELEVENLABS_API_KEY,
                 },
-            }),
-        });
+                body: JSON.stringify({
+                    text,
+                    model_id: ELEVENLABS_MODEL,
+                    voice_settings: { stability: 0.5, similarity_boost: 0.75, style: 0.0 },
+                }),
+            }
+        );
 
         if (!response.ok) {
             const errText = await response.text().catch(() => '');
             throw new Error(`ElevenLabs ${response.status}: ${errText}`);
         }
 
-        return response.blob();
+        return response.arrayBuffer(); // raw MP3 bytes, platform-neutral
     }
 
-    // ── Platform-specific playback ────────────────────────────────────────────
+    // ── WEB: Web Audio API playback ───────────────────────────────────────────
+
+    function _getAudioContext() {
+        if (!_audioCtx || _audioCtx.state === 'closed') {
+            const AC = window.AudioContext || window.webkitAudioContext;
+            if (!AC) throw new Error('Web Audio API not available');
+            _audioCtx = new AC();
+        }
+        return _audioCtx;
+    }
 
     /**
-     * Web playback via HTMLAudioElement.
-     * GUARANTEED to resolve only on `onended` or `onerror`.
-     * No didJustFinish timing ambiguity.
+     * Play audio on web using Web Audio API.
+     * AudioBufferSourceNode.onended fires EXACTLY ONCE, only when fully played.
+     * This is why web audio no longer cuts off mid-sentence.
      */
-    function _playWeb(blob, myGen) {
-        return new Promise((resolve) => {
-            // Revoke any prior object URL and stop prior audio
-            if (_webAudio) {
-                try { _webAudio.pause(); } catch (_) { }
-                _webAudio = null;
-            }
-
-            const url = URL.createObjectURL(blob);
-            const audio = new window.Audio(url);
-
+    async function _playWeb(audioBuffer) {
+        return new Promise(async (resolve) => {
             let settled = false;
-            const finish = (reason) => {
+            const done = () => {
                 if (settled) return;
                 settled = true;
-                try { URL.revokeObjectURL(url); } catch (_) { }
-                _webAudio = null;
+                _audioSource = null;
                 resolve();
             };
-
-            audio.addEventListener('ended', () => finish('ended'));
-            audio.addEventListener('error', (e) => {
-                console.warn('[ElevenLabsVoiceService] Web audio error:', e.message);
-                finish('error');
-            });
-
-            _webAudio = audio;
-
-            audio.play().catch((err) => {
-                // Browser autoplay blocked — resolve so queue continues
-                console.warn('[ElevenLabsVoiceService] play() blocked:', err.message);
-                finish('blocked');
-            });
+            try {
+                const ctx = _getAudioContext();
+                if (ctx.state === 'suspended') await ctx.resume();
+                // slice(0) copies because decodeAudioData detaches the original
+                const decoded = await ctx.decodeAudioData(audioBuffer.slice(0));
+                const source = ctx.createBufferSource();
+                source.buffer = decoded;
+                source.connect(ctx.destination);
+                source.onended = done;
+                _audioSource = source;
+                source.start(0);
+            } catch (err) {
+                console.warn('[ElevenLabsVoiceService] Web Audio error:', err.message);
+                done();
+            }
         });
     }
 
+    // ── NATIVE: expo-av playback (Android / iOS) ──────────────────────────────
+
     /**
-     * Native playback via expo-av.
-     * Resolves on didJustFinish=true OR error.
+     * Play audio on Android/iOS using expo-av.
+     *
+     * Android limitation: ExoPlayer (used by expo-av) does NOT support
+     * data:// URIs. We convert the ArrayBuffer to a Blob object URL using
+     * URL.createObjectURL, which IS available in React Native ≥ 0.69 (via
+     * the Blob polyfill). This gives us a blob:// URI that ExoPlayer CAN load.
+     *
+     * If blob URL creation fails, we fall back to expo-speech.
      */
-    async function _playNative(blob, myGen) {
-        // Convert blob → base64 data URI for expo-av
-        const dataUri = await new Promise((resolve, reject) => {
-            const reader = new FileReader();
-            reader.onloadend = () => resolve(reader.result);
-            reader.onerror = reject;
-            reader.readAsDataURL(blob);
-        });
+    async function _playNative(audioBuffer) {
+        let blobUrl = null;
+
+        try {
+            // React Native's Blob + URL.createObjectURL support (RN ≥ 0.69)
+            const blob = new Blob([audioBuffer], { type: 'audio/mpeg' });
+            blobUrl = URL.createObjectURL(blob);
+        } catch (e) {
+            // URL.createObjectURL not available — caller will fall back to speech
+            throw new Error('Blob URL not supported on this RN version: ' + e.message);
+        }
 
         return new Promise(async (resolve) => {
+            const cleanup = () => {
+                if (blobUrl) {
+                    try { URL.revokeObjectURL(blobUrl); } catch (_) { }
+                    blobUrl = null;
+                }
+            };
+
             try {
                 const { Audio } = await import('expo-av');
                 await Audio.setAudioModeAsync({
@@ -199,21 +218,23 @@ const ElevenLabsVoiceService = (() => {
                 });
 
                 const { sound } = await Audio.Sound.createAsync(
-                    { uri: dataUri },
+                    { uri: blobUrl },
                     { shouldPlay: true },
                     (status) => {
-                        // Only resolve when audio genuinely finished or errored
                         if (status.isLoaded && status.didJustFinish) {
+                            cleanup();
                             resolve();
                         } else if (status.error) {
-                            console.warn('[ElevenLabsVoiceService] Native playback error:', status.error);
+                            console.warn('[ElevenLabsVoiceService] expo-av status error:', status.error);
+                            cleanup();
                             resolve();
                         }
                     }
                 );
                 _avSound = sound;
             } catch (err) {
-                console.warn('[ElevenLabsVoiceService] createAsync failed:', err.message);
+                cleanup();
+                console.warn('[ElevenLabsVoiceService] expo-av createAsync failed:', err.message);
                 resolve();
             }
         });
@@ -221,23 +242,26 @@ const ElevenLabsVoiceService = (() => {
 
     async function _releaseNativeSound() {
         if (_avSound) {
-            try {
-                await _avSound.stopAsync();
-                await _avSound.unloadAsync();
-            } catch (_) { }
+            try { await _avSound.stopAsync(); } catch (_) { }
+            try { await _avSound.unloadAsync(); } catch (_) { }
             _avSound = null;
         }
     }
 
+    // ── Stop current audio ────────────────────────────────────────────────────
+
     function _stopCurrentAudio() {
-        // Web
-        if (_webAudio) {
-            try { _webAudio.pause(); } catch (_) { }
-            _webAudio = null;
+        // Web Audio API
+        if (_audioSource) {
+            try {
+                _audioSource.onended = null; // prevent done() firing after stop
+                _audioSource.stop();
+            } catch (_) { }
+            _audioSource = null;
         }
-        // Speech fallback
+        // expo-speech (native fallback)
         try { Speech.stop(); } catch (_) { }
-        // Native (expo-av) — async but we fire-and-forget for speed
+        // expo-av (native primary)
         if (_avSound) {
             const s = _avSound;
             _avSound = null;
@@ -247,12 +271,18 @@ const ElevenLabsVoiceService = (() => {
 
     // ── expo-speech fallback ──────────────────────────────────────────────────
 
-    function _speakNative(text, lang) {
+    /**
+     * Device TTS via expo-speech.
+     * This is the primary path on Android (no ElevenLabs), and the fallback
+     * when ElevenLabs fails. Works perfectly for all 9 languages on Android —
+     * Android has built-in Google TTS engine that supports Indic scripts well.
+     */
+    function _speakWithDeviceTTS(text, lang) {
         return new Promise((resolve) => {
             Speech.speak(text, {
                 language: BCP47_TAGS[lang] || 'en-IN',
                 pitch: 1.0,
-                rate: 0.9,
+                rate: 0.85, // slightly slower for clarity
                 onDone: resolve,
                 onError: resolve,
                 onStopped: resolve,
@@ -262,15 +292,8 @@ const ElevenLabsVoiceService = (() => {
 
     // ── Queue processor ───────────────────────────────────────────────────────
 
-    /**
-     * Processes the queue one item at a time.
-     * Uses a generation counter (_cancelGen) to safely detect stale runs.
-     * A stale run (from before a cancel) will see its generation doesn't match
-     * and exits cleanly without touching the new session's state.
-     */
     async function _processQueue(myGen) {
-        // Stale run check — if cancel() was called since we started, stop
-        if (myGen !== _cancelGen) return;
+        if (myGen !== _cancelGen) return; // stale chain — newer session took over
 
         if (_queue.length === 0) {
             _setState('idle');
@@ -278,92 +301,76 @@ const ElevenLabsVoiceService = (() => {
             return;
         }
 
-        const item = _queue.shift();
-        const { text, lang, cacheKey } = item;
+        const { text, lang, cacheKey } = _queue.shift();
 
-        let blob = _cache.get(cacheKey);
+        // On native without an API key, skip ElevenLabs entirely
+        const useElevenLabs = !!ELEVENLABS_API_KEY;
+
+        let audioBuffer = useElevenLabs ? _cache.get(cacheKey) : null;
 
         try {
-            if (!blob) {
+            if (useElevenLabs && !audioBuffer) {
                 _setState('fetching');
-                if (myGen !== _cancelGen) return; // check again after state change
-                blob = await _fetchBlob(text, lang);
-                if (myGen !== _cancelGen) return; // cancelled during fetch
-                _cache.set(cacheKey, blob);
+                if (myGen !== _cancelGen) return;
+
+                audioBuffer = await _fetchAudioBuffer(text, lang);
+                if (myGen !== _cancelGen) return;
+
+                _cache.set(cacheKey, audioBuffer.slice(0)); // cache a copy
             }
 
             if (myGen !== _cancelGen) return;
-
             _setState('playing');
 
             if (Platform.OS === 'web') {
-                await _playWeb(blob, myGen);
+                // Web: always use Web Audio API (reliable onended)
+                await _playWeb(audioBuffer);
+            } else if (useElevenLabs) {
+                // Native: try ElevenLabs audio via blob URL, fall back to device TTS
+                try {
+                    await _playNative(audioBuffer);
+                    await _releaseNativeSound();
+                } catch (nativeErr) {
+                    console.warn('[ElevenLabsVoiceService] Native blob playback failed, using device TTS:', nativeErr.message);
+                    await _speakWithDeviceTTS(text, lang);
+                }
             } else {
-                await _playNative(blob, myGen);
-                await _releaseNativeSound();
+                // No API key: use device TTS directly (always works on Android)
+                await _speakWithDeviceTTS(text, lang);
             }
         } catch (err) {
-            console.warn('[ElevenLabsVoiceService] error, falling back to expo-speech:', err.message);
+            // ElevenLabs fetch failed — fall back to device TTS
+            console.warn('[ElevenLabsVoiceService] ElevenLabs fetch failed, using device TTS:', err.message);
             if (myGen === _cancelGen) {
                 _setState('playing');
-                await _speakNative(text, lang);
+                await _speakWithDeviceTTS(text, lang);
             }
         }
 
-        // Continue with next item
         await _processQueue(myGen);
     }
 
     // ── Public API ────────────────────────────────────────────────────────────
 
     return {
-        /**
-         * Enqueue text for playback.
-         *
-         * FIX vs previous version:
-         * - Always resets the cancelled state so new items play even if
-         *   cancel() was called and _state hasn't returned to idle yet.
-         * - Uses generation counter instead of _cancelled boolean to
-         *   safely abort stale processing chains without stopping new ones.
-         */
         speak(text, lang = 'en') {
             if (!text?.trim()) return;
-
             _queue.push({ text, lang, cacheKey: _cacheKey(text, lang) });
-
-            // Restart processing if not already running.
-            // This handles the case where processing stopped (idle) OR
-            // was cancelled mid-flight and hasn't reset yet.
             if (!_processing) {
                 _processing = true;
                 _processQueue(_cancelGen);
             }
         },
 
-        /**
-         * Stop all audio immediately and drain the queue.
-         *
-         * FIX vs previous version:
-         * - Increments _cancelGen so any in-flight _processQueue call detects
-         *   it is stale and exits cleanly — no race condition.
-         * - Stops audio synchronously (no await needed by caller).
-         * - Does NOT need to be awaited before calling speak() again.
-         */
         cancel() {
-            _cancelGen++;           // invalidate all in-flight processing chains
-            _queue = [];            // drain queue
-            _processing = false;    // allow restart
-            _stopCurrentAudio();    // stop immediately (synchronous where possible)
+            _cancelGen++;
+            _queue = [];
+            _processing = false;
+            _stopCurrentAudio();
             _setState('idle');
         },
 
-        /**
-         * Reset for a new route — same as cancel() but also clears the cache key
-         * so the dedup in useVoiceNavigation resets too (caller's responsibility).
-         */
-        reset() {
-            this.cancel();
-        },
+        reset() { this.cancel(); },
 
         get state() { return _state; },
         get isActive() { return _processing || _queue.length > 0; },
