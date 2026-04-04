@@ -12,6 +12,71 @@ const miroService = require('../services/miro.service');
 // DASHBOARD OVERVIEW
 // ═══════════════════════════════════════════════════════════
 
+/**
+ * Automatically links rooms with the same name and vertical type (stairs, elevators)
+ * across different floors within the same building.
+ */
+async function linkVerticalConnectors(buildingId) {
+    console.log(`[Vertical Link] Linking connectors for building: ${buildingId}`);
+    try {
+        // Find all vertical rooms in this building
+        const res = await query(`
+            SELECT r.id, r.name, r.type, f.floor_number, f.id as floor_id
+            FROM rooms r
+            JOIN floors f ON r.floor_id = f.id
+            WHERE f.building_id = $1 AND r.type IN ('stairs', 'elevator', 'escalator')
+        `, [buildingId]);
+
+        const verticalRooms = res.rows;
+        if (verticalRooms.length < 2) return;
+
+        // Group by name
+        const grouped = {};
+        verticalRooms.forEach(r => {
+            const key = `${r.name.toLowerCase().trim()}_${r.type.toLowerCase().trim()}`;
+            if (!grouped[key]) grouped[key] = [];
+            grouped[key].push(r);
+        });
+
+        // Link rooms within each group (all-to-all across different floors)
+        for (const key in grouped) {
+            const rooms = grouped[key];
+            if (rooms.length < 2) continue;
+
+            for (let i = 0; i < rooms.length; i++) {
+                for (let j = i + 1; j < rooms.length; j++) {
+                    const r1 = rooms[i];
+                    const r2 = rooms[j];
+
+                    // Only link if on different floors
+                    if (r1.floor_id !== r2.floor_id) {
+                        // Create bidirectional connection
+                        // Use 5m as default vertical distance (one floor height approx)
+                        const distance = Math.abs(r1.floor_number - r2.floor_number) * 4; 
+
+                        // Check if already exists to avoid duplicates
+                        const exists = await query(`
+                            SELECT 1 FROM connections 
+                            WHERE (from_room = $1 AND to_room = $2)
+                               OR (from_room = $2 AND to_room = $1)
+                        `, [r1.id, r2.id]);
+
+                        if (exists.rowCount === 0) {
+                            console.log(`[Vertical Link] Linking ${r1.name} (F${r1.floor_number}) <-> ${r2.name} (F${r2.floor_number})`);
+                            await query(`
+                                INSERT INTO connections (from_room, to_room, distance, is_bidirectional, is_accessible)
+                                VALUES ($1, $2, $3, true, true)
+                            `, [r1.id, r2.id, distance]);
+                        }
+                    }
+                }
+            }
+        }
+    } catch (err) {
+        console.error("[Vertical Link] Error linking connectors:", err);
+    }
+}
+
 const getDashboardStats = async (req, res, next) => {
     try {
         // Total feedback count
@@ -604,6 +669,13 @@ const syncFromMiro = async (req, res, next) => {
 
             await client.query(`UPDATE floors SET last_miro_sync = NOW() WHERE id = $1`, [floor_id]);
             await client.query('COMMIT');
+
+            // 4. Automatically link vertical connectors (stairs/elevators) across floors in this building
+            const floorInfo = await query(`SELECT building_id FROM floors WHERE id = $1`, [floor_id]);
+            if (floorInfo.rows[0]) {
+                await linkVerticalConnectors(floorInfo.rows[0].building_id);
+            }
+
             console.log("[Blueprint Scan] Database transaction committed successfully");
             res.status(200).json({ 
                 success: true, 
