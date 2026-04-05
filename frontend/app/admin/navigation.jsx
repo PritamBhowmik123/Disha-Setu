@@ -2,7 +2,7 @@
  * app/admin/navigation.jsx
  * Admin Indoor Navigation Management - Full CRUD for rooms and connections
  */
-import { View, Text, ScrollView, TouchableOpacity, RefreshControl, Alert, Modal, TextInput, Switch, ActivityIndicator } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, RefreshControl, Alert, Modal, TextInput, Switch, ActivityIndicator, Linking } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useState, useEffect, useCallback } from 'react';
@@ -769,7 +769,7 @@ function BlueprintScanModal({ visible, onClose, onScan, buildings }) {
                     'AI Analysis complete! Your editable map has been sent to Miro.',
                     [
                         { text: 'Open Miro', onPress: () => {
-                            if (Platform.OS === 'web') window.open(res.miroBoardUrl, '_blank');
+                            if (res.miroBoardUrl) Linking.openURL(res.miroBoardUrl);
                         }},
                         { text: 'OK' }
                     ]
@@ -935,9 +935,13 @@ function BlueprintScanModal({ visible, onClose, onScan, buildings }) {
                             onPress={handleScan}
                             disabled={loading || !image || !selectedFloor}
                             className={`py-4 rounded-xl items-center mb-6 border ${loading || !image || !selectedFloor ? 'bg-card border-cardBorder' : 'bg-purple-600 border-purple-500'}`}
+                            style={{ opacity: loading ? 0.7 : 1 }}
                         >
                             {loading ? (
-                                <ActivityIndicator color="white" />
+                                <View className="flex-row items-center gap-2">
+                                    <ActivityIndicator color="white" />
+                                    <Text className="text-white font-bold">Analyzing with Gemini AI...</Text>
+                                </View>
                             ) : (
                                 <View className="flex-row items-center gap-2">
                                     <Ionicons name="cloud-upload-outline" size={20} color="white" />
@@ -951,7 +955,7 @@ function BlueprintScanModal({ visible, onClose, onScan, buildings }) {
                         {miroUrl && (
                             <TouchableOpacity
                                 onPress={() => {
-                                    if (Platform.OS === 'web') window.open(miroUrl, '_blank');
+                                    if (miroUrl) Linking.openURL(miroUrl);
                                 }}
                                 className="py-4 bg-blue-600 rounded-xl items-center mb-6 flex-row justify-center gap-2"
                             >
